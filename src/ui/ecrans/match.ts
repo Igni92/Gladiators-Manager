@@ -21,13 +21,13 @@ export function rendreMatch(params: ParamsEcran): void {
   rendu = null;
 
   const match = matchDuJoueur(etat);
+  // un seul combat par semaine, et pas d'amical quand un match officiel attend
+  if (etat.matchJoue || (params.amical && match)) {
+    return jeu.aller('ville');
+  }
   let adversaire: Team;
   let competition: CompetitionId;
   if (params.amical || !match) {
-    if (etat.matchJoue || (match && !params.amical)) {
-      // pas d'amical si un match officiel attend ou si on a déjà combattu
-      jeu.aller(match ? 'match' : 'ville');
-    }
     const rng = rngDe(etat);
     adversaire = adversaireAmical(etat, rng);
     sauverRng(etat, rng);
