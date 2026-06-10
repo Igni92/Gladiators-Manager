@@ -3,9 +3,10 @@
 import { RNG } from '../core/rng';
 import type { GameState, Team } from '../core/types';
 import { BALANCE } from '../data/balance';
-import { COULEURS_EQUIPES, NOMS_EQUIPES } from '../data/noms';
+import { COULEURS_EQUIPES, NOMS_EQUIPES, RUMEURS_AMBIANCE } from '../data/noms';
 import { genererCalendrierLigue } from './competitions';
 import { genGladiateur, ovrCibleDivision } from './generation';
+import { regenererMarche } from './marche';
 
 export const VERSION_SAVE = 1;
 
@@ -73,7 +74,7 @@ export function nouvellePartie(seed: number, nomEcurie: string): GameState {
     semainesDettes: 0,
   };
   etat.equipes.push(joueur);
-  // effectif de départ : 4 combattants modestes mais variés (jamais de mage : ça se mérite)
+  // effectif de départ : 5 combattants modestes mais variés (jamais de mage : ça se mérite)
   const classesDepart = ['bretteur', 'colosse', 'roublard', 'lancier', 'berserker'] as const;
   for (const classe of classesDepart) {
     const g = genGladiateur(rng, etat.prochainId++, rng.int(48, 56), 0, classe);
@@ -92,6 +93,14 @@ export function nouvellePartie(seed: number, nomEcurie: string): GameState {
   }
 
   demarrerSaison(etat, rng);
+  // la fenêtre de transfert de pré-saison est ouverte dès la semaine 1
+  regenererMarche(etat, rng);
+  etat.rumeurs.push({ texte: rng.pick(RUMEURS_AMBIANCE), gladiateurId: -1 });
+  const annonce = etat.marche[0];
+  if (annonce) {
+    const g = etat.gladiateurs[annonce.gladiateurId];
+    if (g) etat.rumeurs.unshift({ texte: `Un marchand jure que ${g.nom} cherche une nouvelle écurie.`, gladiateurId: g.id });
+  }
   etat.rngState = Math.floor(rng.next() * 4294967296);
   etat.historiqueTresorerie.push(joueur.tresorerie);
   return etat;

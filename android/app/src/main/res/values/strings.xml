@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gladiators Manager</string>
+    <string name="title_activity_main">Gladiators Manager</string>
+    <string name="package_name">com.gladiators.manager</string>
+    <string name="custom_url_scheme">com.gladiators.manager</string>
+</resources>

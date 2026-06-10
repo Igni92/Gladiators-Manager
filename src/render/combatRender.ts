@@ -252,7 +252,7 @@ export class CombatRender {
 
       const { anim, frame } = this.frameDe(u);
       ctx.globalAlpha = u.vivant ? 1 : 0.85;
-      const ok = assets.dessinerSprite(ctx, u.classe, anim as never, this.dirDe(u), frame, u.x, u.y, 110);
+      const ok = assets.dessinerSprite(ctx, u.classe, anim as never, this.dirDe(u), frame, u.x, u.y, 138);
       if (!ok) {
         ctx.fillStyle = u.equipe === 0 ? '#27ae60' : '#c0392b';
         ctx.beginPath();
