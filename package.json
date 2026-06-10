@@ -1,0 +1,21 @@
+{
+  "name": "gladiators-manager",
+  "version": "1.0.0",
+  "description": "Gladiators Manager - un Football Manager dans un monde de gladiateurs fantasy",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview --port 4173 --host",
+    "typecheck": "tsc --noEmit",
+    "sim": "tsx scripts/balance-sim.ts",
+    "shoot": "tsx scripts/screenshot.ts",
+    "cap:sync": "cap sync"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  }
+}

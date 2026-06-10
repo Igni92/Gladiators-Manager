@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Blender / asset build temp
+/tmp/blender*
+*.blend1
+
+# Capacitor native build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+
+# Playwright
+test-results/
+playwright-report/
+/screenshots-tmp/
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/
+.idea/
