@@ -1,0 +1,24 @@
+{
+  "name": "gladiators-manager",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "sim": "tsx tools/sim/simulate.ts",
+    "test:visual": "node tests/visual.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
+    "typescript": "^5.6.2",
+    "tsx": "^4.19.1",
+    "vite": "^5.4.8"
+  }
+}

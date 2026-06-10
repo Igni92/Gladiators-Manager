@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+tools/blender/out/
+tests/screenshots/*.tmp.png
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+ios/App/Pods/
+ios/App/App/public/
+ios/App/output/
+ios/DerivedData/
