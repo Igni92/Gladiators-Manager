@@ -120,8 +120,8 @@ export const BALANCE = {
   PV_FORCE: 0.5,
   PV_OVR: 2.1,
   /** dégâts mêlée = DEG_BASE + force × DEG_FORCE (× arme de classe, × état) */
-  DEG_BASE: 12,
-  DEG_FORCE: 0.2,
+  DEG_BASE: 11,
+  DEG_FORCE: 0.24,
   /** vitesse de déplacement (unités/s) = DEPL_BASE + vitesse × DEPL_PENTE */
   DEPL_BASE: 52,
   DEPL_PENTE: 1.05,
@@ -129,8 +129,8 @@ export const BALANCE = {
   ATT_CD_BASE: 2.0,
   ATT_CD_PENTE: 0.009,
   /** esquive : P = esquive × 0.0045 (cap 0.38) ; fourberie : crit = fourberie × 0.0035 (+ dos ×1.6), dégâts crit ×1.8 */
-  ESQ_PENTE: 0.0075,
-  ESQ_CAP: 0.55,
+  ESQ_PENTE: 0.0066,
+  ESQ_CAP: 0.5,
   CRIT_PENTE: 0.0045,
   CRIT_MULT: 1.9,
   /** intelligence : réduit le temps de décision et donne un bonus de garde (réduction de dégâts subis) */
@@ -140,14 +140,14 @@ export const BALANCE = {
   /** boule de feu : dégâts = 18 + magie × 0.5, cd 4,5 s, portée 320 */
   FEU_BASE: 16,
   FEU_MAGIE: 0.45,
-  FEU_CD: 5.5,
+  FEU_CD: 5.0,
   /** nova de zone : dégâts = 14 + magie × 0.34, rayon 95, cd 10 s */
   NOVA_BASE: 12,
   NOVA_MAGIE: 0.27,
   NOVA_CD: 10,
   /** soin : rend 16 + magie × 0.42 PV à l'allié le plus blessé, cd 9 s */
-  SOIN_BASE: 12,
-  SOIN_MAGIE: 0.32,
+  SOIN_BASE: 14,
+  SOIN_MAGIE: 0.34,
   SOIN_CD: 9,
   /** consignes : agressif = dégâts ×1.15 / esquive-garde ×0.85 ; défensif = inverse */
   CONSIGNE_BONUS: 1.12,

@@ -36,7 +36,7 @@ Chaque trait a un rôle précis :
 - **Fourberie** : critique `FOU×0,45 %` (×1,6 dans le dos, dégâts ×1,9) et
   **attaques à distance** : couteaux (roublard) / javelots (lancier),
   dégâts `7 + FOU×0,42`, portée 240-270, cadence ×1,35.
-- **Esquive** : esquive `ESQ×0,75 %`, cap 55 % (×0,85 contre les projectiles,
+- **Esquive** : esquive `ESQ×0,66 %`, cap 50 % (×0,85 contre les projectiles,
   ×0,5 contre les boules de feu).
 - **Magie** : ≥ 60 → sorts. Boule de feu (`16 + MAG×0,45`, cd 5,5 s, esquivable
   à demi et BLOCABLE comme un tir — c'est le contre des mages), nova
@@ -56,7 +56,7 @@ sa pente raisonnable à la courbe « différence de niveau → probabilité de v
 (sans elle, +5 ovr gagnait déjà ~90 % des matchs : injouable pour un promu).
 
 Consignes en direct : agressif (dégâts ×1,15, défenses ×0,85), défensif (inverse),
-magie (recharges des sorts ×0,8), ciblage prioritaire d'un adversaire au doigt.
+magie (recharges ×0,88, dégâts des non-mages ×0,92), ciblage prioritaire d'un adversaire au doigt.
 
 ## Économie (PO = pièces d'or)
 
@@ -90,24 +90,36 @@ magie (recharges des sorts ×0,8), ciblage prioritaire d'un adversaire au doigt.
 - **Blessures** : 30 % après K.O. (2-5 sem.), 5 % par participation (1-2 sem.),
   symétriques joueur/IA ; guérisseur : 90 PO par semaine de convalescence évitée.
 
-## Chasse à la méta (résultats de `npm run sim`)
+## Chasse à la méta (résultats de `npm run sim`, v3)
 
 La simulation cherche activement les stratégies dégénérées :
 
 | Test | Résultat après calibration |
 |---|---|
-| Build 100 % mono-stat (tournoi round-robin) | Force 72 % (était 96 % !), Fourberie 46 %, Vitesse 30 %, Int 31 %, Esquive 26 % — aucun ≥ 80 % |
-| Build équilibré vs builds caricaturaux | ~95 % : la polyvalence est la valeur sûre (anti-méta par design) |
-| Gain marginal de +12 dans une stat | toutes les stats aident (61-72 %) sans dominer (≤ 78 %) |
-| Trio mono-classe vs trio varié | tous entre 30 % (mage) et 70 % (bretteur) — ni classe poubelle ni classe obligatoire |
-| Consigne unique permanente | agressif 52 %, défensif 38 %, magie 60 % — aucune ne remplace le pilotage |
-| 6 talents synergiques vs 0 | 87 % : ~+4 ovr d'équivalent par talent, le prix des hauts paliers |
-| Placement réfléchi vs tout-devant | 60 % : le placement compte |
+| Gain marginal de +12 dans UNE stat (le vrai test) | toutes les stats aident : Force 71 %, Int 76 %, Esquive 70 %, Vitesse 65 %, Fourberie 57 % — aucune ≤ 50 ni ≥ 78 % |
+| Build 100 % mono-stat (artefact extrême) | Force 80 %, Fourberie 45 %, Int 33 %, Vitesse 29 %, Esquive 20 % |
+| Build équilibré vs builds caricaturaux | ~94 % : la polyvalence est la valeur sûre (anti-méta par design) |
+| Trio mono-classe vs trio varié | tous entre 38 % (mage, lancier) et 63 % (bretteur) |
+| **Trio mono-race vs trio mixte** | humain 45 %, gobelin 49 %, orc 53 %, elfe/drakéide 54 %, nain 64 % — aucune race obligatoire |
+| Consigne unique permanente | agressif 61 %, défensif 47 %, magie 52 % |
+| 6 talents synergiques vs 0 | 78 % : ~+4 ovr d'équivalent par talent |
+| **Équipes clonées (test miroir)** | 46-50 % sur toutes les compositions : moteur équitable par construction |
 
-Corrections issues de cette chasse : PV décorrélés de la Force, boule de feu
-esquivable/blocable, kiting imparfait, tireurs qui chargent les boucliers
-(leurs projectiles y sont bloqués à 45 %), soins de mage réduits, consignes
-adoucies (±12 %).
+Deux découvertes majeures de cette chasse :
+1. **Biais structurel du moteur** : dans les mêlées bousculées, une unité
+   coincée à 2 px au-delà de son allonge ne frappait JAMAIS (88 % de victoires
+   pour le camp dont le tireur se calait du bon côté du seuil — mesuré sur
+   équipes clonées). Corrigé par une tolérance d'allonge (+14 px, priorité à
+   l'attaque) + alternance de l'ordre d'action par tick.
+2. **Bonus raciaux « remboursés »** : appliqués avant le calage de note
+   globale, ils étaient annulés (voire inversés) par la normalisation. Ils
+   s'appliquent désormais APRÈS (un orc a vraiment +6 Force, honnêtement
+   reflété dans sa note, son salaire et sa valeur).
+
+Autres corrections : PV décorrélés de la Force, boule de feu esquivable et
+blocable (le contre des mages), kiting imparfait (le placement compte),
+tireurs qui chargent les porteurs de bouclier, consignes adoucies — la
+consigne magie coûte désormais ×0,92 aux dégâts des non-mages.
 
 ## Structure de la saison (30 semaines)
 

@@ -35,7 +35,7 @@ const MODS_CLASSE: Record<ClassId, { deg: number; pv: number; portee: number; ti
   bretteur: { deg: 1.0, pv: 1.05, portee: 38, tireur: false, bouclier: true },
   roublard: { deg: 1.05, pv: 0.92, portee: 34, tireur: true, bouclier: false },
   lancier: { deg: 0.95, pv: 0.95, portee: 58, tireur: true, bouclier: true },
-  mage: { deg: 0.7, pv: 0.8, portee: 36, tireur: false, bouclier: false },
+  mage: { deg: 0.7, pv: 0.85, portee: 36, tireur: false, bouclier: false },
   berserker: { deg: 1.06, pv: 1.0, portee: 38, tireur: false, bouclier: false },
 };
 
@@ -293,6 +293,8 @@ function stanceDeg(cs: CombatState, u: UniteCombat): number {
   const c = cs.consignes[u.equipe];
   if (c === 'agressif') return BALANCE.CONSIGNE_BONUS;
   if (c === 'defensif') return BALANCE.CONSIGNE_MALUS;
+  // consigne magie : les non-mages couvrent les lanceurs et frappent moins fort
+  if (c === 'magie' && !u.estMage) return 0.92;
   return 1;
 }
 
@@ -461,7 +463,7 @@ function attaqueDistance(cs: CombatState, u: UniteCombat, cibleIdx: number): voi
 
 function lancerSorts(cs: CombatState, u: UniteCombat, uIdx: number, cible: UniteCombat, dist: number): boolean {
   const prioMagie = cs.consignes[u.equipe] === 'magie';
-  const facteurCd = prioMagie ? 0.8 : 1;
+  const facteurCd = prioMagie ? 0.88 : 1;
   const fPortee = u.talents.includes('longueportee') ? BALANCE.T_LONGUEPORTEE_PORTEE : 1;
 
   if (u.tSoin <= 0) {
@@ -536,7 +538,13 @@ export function tickCombat(cs: CombatState): void {
   cs.evts = [];
   cs.t += dt;
 
-  for (let i = 0; i < cs.unites.length; i++) {
+  // l'ordre d'action alterne à chaque tick : sans cela, le camp traité en
+  // premier vole la riposte de chaque échange létal (80 % de victoires sur
+  // des équipes clonées — mesuré par la simulation miroir)
+  const ordreTick = [...cs.unites.keys()];
+  if (Math.round(cs.t / dt) % 2 === 1) ordreTick.reverse();
+
+  for (const i of ordreTick) {
     const u = cs.unites[i];
     if (!u) continue;
     u.animT += dt;
@@ -613,21 +621,30 @@ export function tickCombat(cs: CombatState): void {
       // sinon : on continue d'avancer (le tir au passage est déjà parti)
     }
 
-    // Mêlée : repli défensif si mal en point et arme pas prête
+    // Mêlée : repli défensif si mal en point et arme pas prête.
+    // L'allonge effective est tolérante (+14) : dans une mêlée bousculée, une
+    // unité coincée à 2 px du seuil restait spectatrice à jamais — c'était le
+    // biais structurel n°1 détecté par la simulation miroir (88 % côté A).
     const defensif = cs.consignes[u.equipe] === 'defensif';
     const replie = defensif && u.pv / u.pvMax < 0.35 && u.tAttaque > 0.4;
+    const porteeEff = u.portee + cible.portee * 0.2 + 14;
     if (replie && dist < 140) {
       u.x -= (dx / dist) * u.vitDepl * 0.8 * dt;
       u.y -= (dy / dist) * u.vitDepl * 0.8 * dt;
       if (u.anim !== 'hit') u.anim = 'walk';
-    } else if (dist > u.portee + cible.portee * 0.2) {
-      const v = u.rageActive ? u.vitDepl : u.vitDepl;
-      u.x += (dx / dist) * v * dt;
-      u.y += (dy / dist) * v * dt;
-      if (u.anim !== 'hit' && u.anim !== 'attack') u.anim = 'walk';
-    } else {
+    } else if (dist <= porteeEff) {
+      // à portée (avec tolérance) : on frappe dès que l'arme est prête
       if (u.anim === 'walk') u.anim = 'idle';
       if (u.tAttaque <= 0) attaqueMelee(cs, u, u.cibleIdx);
+      // on continue de coller la cible si elle est au-delà de l'allonge stricte
+      if (dist > u.portee + cible.portee * 0.2) {
+        u.x += (dx / dist) * u.vitDepl * 0.5 * dt;
+        u.y += (dy / dist) * u.vitDepl * 0.5 * dt;
+      }
+    } else {
+      u.x += (dx / dist) * u.vitDepl * dt;
+      u.y += (dy / dist) * u.vitDepl * dt;
+      if (u.anim !== 'hit' && u.anim !== 'attack') u.anim = 'walk';
     }
     ramenerDansArene(u);
   }

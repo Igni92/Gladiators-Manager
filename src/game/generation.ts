@@ -115,10 +115,9 @@ export function genGladiateur(
   const arch = ARCHETYPES[classe];
   const traits: Traits = { force: 0, vitesse: 0, intelligence: 0, fourberie: 0, esquive: 0, magie: 0 };
 
-  // Tirage initial : traits forts au-dessus de la cible, faibles en dessous,
-  // biaisés par la race (redistribution : le calage ci-dessous re-vise l'ovr).
+  // Tirage initial : traits forts au-dessus de la cible, faibles en dessous.
   for (const t of TRAIT_IDS) {
-    let centre = ovrCible + (defRace.mods[t] ?? 0);
+    let centre = ovrCible;
     if (arch.fort.includes(t)) centre += 9;
     else if (arch.faible.includes(t)) centre -= 12;
     if (t === 'magie') centre = classe === 'mage' ? ovrCible + 11 : Math.min(centre, 25);
@@ -134,6 +133,12 @@ export function genGladiateur(
       if (classe !== 'mage' && t === 'magie') continue;
       traits[t] = Math.round(Math.min(99, Math.max(5, traits[t] + delta * 0.6)));
     }
+  }
+
+  // héritage racial : appliqué après le calage pour ne pas être « remboursé »
+  for (const t of TRAIT_IDS) {
+    const mod = defRace.mods[t] ?? 0;
+    if (mod !== 0) traits[t] = Math.round(Math.min(99, Math.max(5, traits[t] + mod)));
   }
 
   const personnalite = rng.pick(PERSONNALITES);

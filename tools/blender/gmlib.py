@@ -53,7 +53,10 @@ def render_to(path):
 
 # ------------------------------------------------------------ materials ----
 
-def mat(name, color, metallic=0.0, rough=0.55, emit=None, emit_strength=0.0, bump=0.0):
+def mat(name, color, metallic=0.0, rough=0.55, emit=None, emit_strength=0.0,
+        bump=0.0, sss=0.0, scales=0.0):
+    """Materiau Principled. sss = Subsurface Weight (peau Pixar).
+    scales = bump Voronoi (ecailles drakeide)."""
     m = bpy.data.materials.get(name)
     if m:
         return m
@@ -64,10 +67,21 @@ def mat(name, color, metallic=0.0, rough=0.55, emit=None, emit_strength=0.0, bum
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Metallic'].default_value = metallic
     bsdf.inputs['Roughness'].default_value = rough
+    if sss > 0:
+        bsdf.inputs['Subsurface Weight'].default_value = sss
+        bsdf.inputs['Subsurface Radius'].default_value = (0.05, 0.02, 0.014)
     if emit:
         bsdf.inputs['Emission Color'].default_value = (*emit, 1.0)
         bsdf.inputs['Emission Strength'].default_value = emit_strength
-    if bump > 0:
+    if scales > 0:
+        vor = nt.nodes.new('ShaderNodeTexVoronoi')
+        vor.inputs['Scale'].default_value = 55.0
+        vor.feature = 'DISTANCE_TO_EDGE'
+        bmp2 = nt.nodes.new('ShaderNodeBump')
+        bmp2.inputs['Strength'].default_value = scales
+        nt.links.new(vor.outputs['Distance'], bmp2.inputs['Height'])
+        nt.links.new(bmp2.outputs['Normal'], bsdf.inputs['Normal'])
+    elif bump > 0:
         noise = nt.nodes.new('ShaderNodeTexNoise')
         noise.inputs['Scale'].default_value = 40.0
         noise.inputs['Detail'].default_value = 8.0
@@ -177,22 +191,65 @@ CLASSES = {
     'berserker': (1.12, 1.18, 1.78, 'swing'),
 }
 
+# ------------------------------------------------------------------ races ----
+# h = hauteur globale, w = largeur, legs = longueur jambes, arms = bras,
+# head = taille relative tete (chibi Pixar), skin = teinte peau,
+# iris = couleur iris, hair = couleur cheveux.
+RACES = {
+    'humain': dict(h=1.00, w=1.00, legs=1.00, arms=1.00, head=1.00,
+                   skin=(0.80, 0.55, 0.40), skin_f=(0.84, 0.60, 0.46),
+                   iris=(0.10, 0.35, 0.75), hair=(0.26, 0.14, 0.06)),
+    'elfe':   dict(h=1.05, w=0.88, legs=1.06, arms=1.00, head=0.97,
+                   skin=(0.88, 0.66, 0.48), skin_f=(0.90, 0.70, 0.52),
+                   iris=(0.10, 0.60, 0.32), hair=(0.90, 0.74, 0.38)),
+    'nain':   dict(h=0.85, w=1.26, legs=0.60, arms=0.92, head=1.10,
+                   skin=(0.78, 0.50, 0.36), skin_f=(0.82, 0.56, 0.42),
+                   iris=(0.60, 0.38, 0.10), hair=(0.58, 0.22, 0.07)),
+    'orc':    dict(h=1.07, w=1.22, legs=0.95, arms=1.10, head=1.05,
+                   skin=(0.30, 0.50, 0.22), skin_f=(0.36, 0.55, 0.26),
+                   iris=(0.78, 0.32, 0.08), hair=(0.07, 0.06, 0.07)),
+    'gobelin': dict(h=0.76, w=0.85, legs=0.85, arms=1.06, head=1.18,
+                    skin=(0.52, 0.62, 0.20), skin_f=(0.58, 0.66, 0.24),
+                    iris=(0.88, 0.70, 0.08), hair=(0.18, 0.10, 0.05)),
+    'drakeide': dict(h=1.04, w=1.08, legs=0.98, arms=1.00, head=1.02,
+                     skin=(0.58, 0.16, 0.10), skin_f=(0.14, 0.30, 0.58),
+                     iris=(0.92, 0.72, 0.12), hair=None),
+}
+RACE_LIST = ['humain', 'elfe', 'nain', 'orc', 'gobelin', 'drakeide']
+CORPULENCE = {0: 0.88, 1: 1.00, 2: 1.18}
+
 JOINTS = ['pelvis', 'spine', 'neck', 'shoulder_L', 'shoulder_R',
           'elbow_L', 'elbow_R', 'hip_L', 'hip_R', 'knee_L', 'knee_R',
           'grip_L', 'grip_R']
 
 # ------------------------------------------------------------ character ----
 
-def build_character(cls, variant=0, prefix=''):
-    """Construit le personnage debout face -Y (S = face camera). Retourne rig dict."""
-    s, w, ortho, atk = CLASSES[cls]
+def build_character(cls, race='humain', genre='m', corpulence=1, variant=0, prefix=''):
+    """v3 — personnage Pixar fantasy debout face -Y. Retourne rig dict.
+    Retro-compat : build_character(cls, 2) == variant=2, race humain."""
+    if isinstance(race, int):           # ancien appel positionnel (cls, variant)
+        variant, race = race, 'humain'
+    s_c, w_c, ortho, atk = CLASSES[cls]
+    R = RACES[race]
+    corp = CORPULENCE.get(corpulence, 1.0)
+    s = s_c * R['h']                    # echelle verticale globale
+    w = w_c * R['w'] * corp             # facteur largeur global
+    if w > 1.35:                        # amortit le cumul classe x race x corpulence
+        w = 1.35 + (w - 1.35) * 0.45
+    legf, armf, hf = R['legs'], R['arms'], R['head']
+    fem = (genre == 'f')
+    shf = 0.90 if fem else 1.0          # epaules
+    hipf = 1.12 if fem else 1.0         # hanches
     P = PALETTES[cls][variant]
-    n = prefix + cls + str(variant)
+    n = prefix + '%s_%s_%s%d' % (race, genre, cls, variant)
 
+    skin_col = R['skin_f'] if fem else R['skin']
+    drak = (race == 'drakeide')
     m_armor = mat(n + '_armor', P, metallic=0.85 if cls != 'roublard' and cls != 'mage' else 0.1,
                   rough=0.35 if cls not in ('roublard', 'mage') else 0.6,
                   bump=0.030 if cls not in ('roublard', 'mage') else 0.08)
-    m_skin = mat(n + '_skin', SKIN, rough=0.5)
+    m_skin = mat(n + '_skin', skin_col, rough=0.42, sss=0.09,
+                 scales=0.35 if drak else 0.0)
     m_steel = mat('steel', STEEL, metallic=0.9, rough=0.3, bump=0.022)
     m_dark = mat('dark', DARK, rough=0.5)
     m_wood = mat('wood', WOOD, rough=0.7, bump=0.12)
@@ -201,25 +258,32 @@ def build_character(cls, variant=0, prefix=''):
 
     root = empty(n + '_root')
     rig = {'root': root, 'cls': cls, 'variant': variant, 's': s, 'w': w,
-           'ortho': ortho, 'atk': atk, 'orb': None, 'objects': []}
+           'ortho': ortho * max(1.0, R['h']),
+           'atk': atk, 'orb': None, 'objects': [],
+           'race': race, 'genre': genre, 'corp': corpulence}
 
     def S3(x, y, z):
         return (x * w * s, y * s, z * s)
 
-    # ---- squelette d'empties
-    pelvis = empty(n + '_pelvis', root, S3(0, 0, 0.64))
+    # tete : largeur amortie (la tete ne s'elargit pas autant que le corps)
+    whead = 1.0 + (w - 1.0) * 0.30
+    def S3h(x, y, z):
+        return (x * whead * s, y * s, z * s)
+
+    # ---- squelette d'empties (API inchangee)
+    pelvis = empty(n + '_pelvis', root, (0, 0, 0.64 * legf * s))
     spine = empty(n + '_spine', pelvis, S3(0, 0, 0.04))
     neck = empty(n + '_neck', spine, S3(0, 0, 0.62))
-    sh_l = empty(n + '_shoulder_L', spine, S3(-0.36, 0, 0.55))
-    sh_r = empty(n + '_shoulder_R', spine, S3(0.36, 0, 0.55))
-    el_l = empty(n + '_elbow_L', sh_l, S3(0, 0, -0.28))
-    el_r = empty(n + '_elbow_R', sh_r, S3(0, 0, -0.28))
-    hip_l = empty(n + '_hip_L', pelvis, S3(-0.15, 0, 0))
-    hip_r = empty(n + '_hip_R', pelvis, S3(0.15, 0, 0))
-    kn_l = empty(n + '_knee_L', hip_l, S3(0, 0, -0.32))
-    kn_r = empty(n + '_knee_R', hip_r, S3(0, 0, -0.32))
-    grip_l = empty(n + '_grip_L', el_l, S3(0, 0, -0.30))
-    grip_r = empty(n + '_grip_R', el_r, S3(0, 0, -0.30))
+    sh_l = empty(n + '_shoulder_L', spine, (-0.36 * shf * w * s, 0, 0.55 * s))
+    sh_r = empty(n + '_shoulder_R', spine, (0.36 * shf * w * s, 0, 0.55 * s))
+    el_l = empty(n + '_elbow_L', sh_l, (0, 0, -0.28 * armf * s))
+    el_r = empty(n + '_elbow_R', sh_r, (0, 0, -0.28 * armf * s))
+    hip_l = empty(n + '_hip_L', pelvis, (-0.15 * hipf * w * s, 0, 0))
+    hip_r = empty(n + '_hip_R', pelvis, (0.15 * hipf * w * s, 0, 0))
+    kn_l = empty(n + '_knee_L', hip_l, (0, 0, -0.32 * legf * s))
+    kn_r = empty(n + '_knee_R', hip_r, (0, 0, -0.32 * legf * s))
+    grip_l = empty(n + '_grip_L', el_l, (0, 0, -0.30 * armf * s))
+    grip_r = empty(n + '_grip_R', el_r, (0, 0, -0.30 * armf * s))
 
     for jn, ob in [('pelvis', pelvis), ('spine', spine), ('neck', neck),
                    ('shoulder_L', sh_l), ('shoulder_R', sh_r),
@@ -234,39 +298,45 @@ def build_character(cls, variant=0, prefix=''):
     bare = (cls == 'berserker')
     m_torso = m_skin if bare else m_armor
 
-    # ---- torse
-    sphere(n + '_chest', spine, S3(0, 0, 0.34), S3(0.36, 0.27, 0.40), m_torso)
-    sphere(n + '_belly', spine, S3(0, 0, 0.10), S3(0.31, 0.26, 0.25),
+    # ---- torse (formes rondes et douces)
+    chest_sc = (0.345 if fem else 0.36, 0.265, 0.40)
+    sphere(n + '_chest', spine, S3(0, 0, 0.34), S3(*chest_sc), m_torso)
+    if fem:
+        sphere(n + '_bust', spine, S3(0, -0.05, 0.30), S3(0.30, 0.215, 0.165), m_torso)
+        if bare:  # bandeau de tissu pour berserker f
+            sphere(n + '_wrap', spine, S3(0, -0.015, 0.31), S3(0.35, 0.245, 0.13), m_leather)
+    belly_sc = {0: (0.27, 0.225, 0.235), 1: (0.31, 0.26, 0.25), 2: (0.345, 0.30, 0.27)}[corpulence]
+    if fem:
+        belly_sc = (belly_sc[0] * 0.92, belly_sc[1] * 0.95, belly_sc[2])
+    sphere(n + '_belly', spine, S3(0, 0, 0.10), S3(*belly_sc),
            m_skin if bare else (m_armor if mage_like else m_leather))
     if not mage_like:
-        # epaulieres
         pad = m_gold if cls == 'lancier' else (m_armor if not bare else mat('fur', (0.28, 0.18, 0.10), rough=0.9))
         sphere(n + '_padL', sh_l, S3(0, 0, 0.02), S3(0.16, 0.15, 0.13), pad)
         sphere(n + '_padR', sh_r, S3(0, 0, 0.02), S3(0.16, 0.15, 0.13), pad)
-    if bare:
-        # peintures de guerre : bandes rouges
+    if bare and not fem:
+        # bande de peinture de guerre diagonale uniquement (une bande
+        # horizontale haute lisait comme une bouche geante sur les gabarits larges)
         m_paint = mat('warpaint', (0.55, 0.05, 0.04), rough=0.6)
-        sphere(n + '_paint1', spine, S3(0, -0.005, 0.42), S3(0.362, 0.272, 0.06), m_paint)
-        sphere(n + '_paint2', spine, S3(0.10, -0.01, 0.30), S3(0.27, 0.272, 0.045), m_paint, rot=(0, 25, 0))
+        sphere(n + '_paint2', spine, S3(0.06, -0.012, 0.30),
+               S3(0.30, chest_sc[1] + 0.008, 0.05), m_paint, rot=(0, 30, 0))
 
-    # ---- tete
-    head_mat = m_skin
-    sphere(n + '_head', neck, S3(0, 0, 0.27), S3(0.33, 0.31, 0.33), head_mat)
-    closed_helm = (cls == 'colosse' and variant in (0, 1))
-    if not closed_helm:
-        m_blanc = mat('eye_white', (0.95, 0.93, 0.88), rough=0.35)
-        sphere(n + '_eyeWL', neck, S3(-0.115, -0.272, 0.30), S3(0.055, 0.032, 0.065), m_blanc)
-        sphere(n + '_eyeWR', neck, S3(0.115, -0.272, 0.30), S3(0.055, 0.032, 0.065), m_blanc)
-        sphere(n + '_eyeL', neck, S3(-0.115, -0.292, 0.30), S3(0.030, 0.020, 0.038), m_dark)
-        sphere(n + '_eyeR', neck, S3(0.115, -0.292, 0.30), S3(0.030, 0.020, 0.038), m_dark)
-        box(n + '_mouth', neck, S3(0, -0.30, 0.155), S3(0.085, 0.018, 0.016), m_dark, bevel=0.005)
-        m_brow = mat(n + '_brow', (0.18, 0.10, 0.06), rough=0.8)
-        box(n + '_browL', neck, S3(-0.115, -0.285, 0.385), S3(0.10, 0.04, 0.035), m_brow, rot=(0, 0, -8), bevel=0.01)
-        box(n + '_browR', neck, S3(0.115, -0.285, 0.385), S3(0.10, 0.04, 0.035), m_brow, rot=(0, 0, 8), bevel=0.01)
+    # ---- tete : empty intermediaire scalee (taille raciale, hors squelette)
+    # legerement remontee pour les gabarits larges (le torse monte au menton)
+    headE = empty(n + '_headE', neck, (0, 0, 0.12 * s * max(0.0, w - 1.15)))
+    headE.scale = (hf, hf, hf)
+    sphere(n + '_head', headE, S3h(0, 0, 0.27), S3h(0.325, 0.30, 0.335), m_skin)
 
-    _headgear(rig, cls, variant, neck, S3,
-              dict(armor=m_armor, steel=m_steel, dark=m_dark, gold=m_gold,
-                   skin=m_skin, leather=m_leather, wood=m_wood))
+    M = dict(armor=m_armor, steel=m_steel, dark=m_dark, gold=m_gold,
+             skin=m_skin, leather=m_leather, wood=m_wood)
+    _face(rig, n, headE, S3h, M)
+    covered = _headgear(rig, cls, variant, headE, S3h, M)
+    _hair(rig, n, headE, S3h, M, covered)
+
+    # ---- queue drakeide
+    if drak:
+        cone(n + '_tail', pelvis, (0, 0.20 * s, -0.04 * s), 0.10 * s, 0.015 * s,
+             0.55 * s, m_skin, rot=(-55, 0, 0), verts=14)
 
     # ---- jambes
     if not mage_like:
@@ -274,18 +344,19 @@ def build_character(cls, variant=0, prefix=''):
         m_shin = m_steel if cls in ('bretteur', 'lancier', 'colosse') else (
             mat('fur', (0.28, 0.18, 0.10), rough=0.9) if bare else m_dark)
         for side, hip, knee in [('L', hip_l, kn_l), ('R', hip_r, kn_r)]:
-            cyl(n + '_thigh' + side, hip, (0, 0, 0), 0.115 * w * s, 0.34 * s, m_leg)
-            cyl(n + '_shin' + side, knee, (0, 0, 0), 0.095 * w * s, 0.28 * s, m_shin)
-            box(n + '_foot' + side, knee, S3(0, -0.06, -0.27), S3(0.15, 0.27, 0.10), m_dark)
-        # jupe/pteruges
-        cone(n + '_skirt', pelvis, S3(0, 0, -0.04), 0.30 * w * s, 0.26 * w * s, 0.22 * s,
+            cyl(n + '_thigh' + side, hip, (0, 0, 0), 0.115 * w * s, 0.34 * legf * s, m_leg)
+            cyl(n + '_shin' + side, knee, (0, 0, 0), 0.095 * w * s, 0.28 * legf * s, m_shin)
+            box(n + '_foot' + side, knee, (0, -0.06 * s, -0.27 * legf * s),
+                S3(0.15, 0.27, 0.10), m_dark)
+        cone(n + '_skirt', pelvis, S3(0, 0, -0.04), 0.30 * w * s, 0.26 * w * s, 0.22 * legf * s,
              m_leather if not bare else mat('fur', (0.28, 0.18, 0.10), rough=0.9))
     else:
-        # robe longue du mage
-        cone(n + '_robe', spine, S3(0, 0, -0.28), 0.42 * w * s, 0.30 * w * s, 0.72 * s, m_armor, verts=28)
+        robe_d = 0.72 * max(legf, 0.55) * s
+        cone(n + '_robe', spine, (0, 0, -0.28 * legf * s - robe_d * 0.5 + 0.36 * legf * s),
+             0.42 * w * s, 0.30 * w * s, robe_d, m_armor, verts=28)
         m_rune = mat('rune', (0.2, 0.9, 1.0), emit=(0.25, 0.9, 1.0), emit_strength=4.0)
         for i, (rx, rz) in enumerate([(-0.10, 0.0), (0.0, 0.10), (0.10, -0.05)]):
-            sphere(n + '_rune%d' % i, spine, S3(rx, -0.38 + abs(rx) * 0.3, -0.25 + rz),
+            sphere(n + '_rune%d' % i, spine, S3(rx, -0.38 + abs(rx) * 0.3, (-0.25 + rz) * legf),
                    (0.025 * s,) * 3, m_rune)
         m_belt = mat(n + '_belt', (0.55, 0.42, 0.10), metallic=0.8, rough=0.4)
         torus(n + '_beltT', spine, S3(0, 0, 0.04), 0.30 * w * s, 0.035 * s, m_belt, rot=(0, 0, 0))
@@ -294,101 +365,312 @@ def build_character(cls, variant=0, prefix=''):
     m_arm = m_skin if (bare or cls in ('roublard',)) else (m_armor if mage_like else m_skin)
     m_fore = m_leather if not mage_like else m_armor
     for side, sh, el in [('L', sh_l, el_l), ('R', sh_r, el_r)]:
-        cyl(n + '_uarm' + side, sh, (0, 0, 0), 0.10 * w * s, 0.30 * s, m_arm)
-        cyl(n + '_farm' + side, el, (0, 0, 0), 0.085 * w * s, 0.26 * s, m_fore)
-        sphere(n + '_hand' + side, el, S3(0, 0, -0.30), (0.115 * s,) * 3, m_skin)
+        cyl(n + '_uarm' + side, sh, (0, 0, 0), 0.10 * w * s, 0.30 * armf * s, m_arm)
+        cyl(n + '_farm' + side, el, (0, 0, 0), 0.085 * w * s, 0.26 * armf * s, m_fore)
+        sphere(n + '_hand' + side, el, (0, 0, -0.30 * armf * s), (0.115 * s,) * 3, m_skin)
 
     _weapons(rig, cls, variant, grip_l, grip_r, el_l, s, w,
              dict(armor=m_armor, steel=m_steel, dark=m_dark, gold=m_gold,
                   wood=m_wood, leather=m_leather))
 
-    # ---- détails v2 : ceinture à boucle, brassards
+    # ---- ceinture, brassards
     if not mage_like:
         torus(n + '_belt', pelvis, S3(0, 0, 0.085), 0.305 * w * s, 0.042 * s, m_leather)
         box(n + '_buckle', pelvis, S3(0, -0.305, 0.085), S3(0.09, 0.03, 0.07), m_gold, bevel=0.012)
     m_bracer = m_leather if cls in ('roublard', 'berserker') else m_steel
     for side, el in [('L', el_l), ('R', el_r)]:
-        cyl(n + '_bracer' + side, el, (0, 0, -0.17 * s), 0.098 * w * s, 0.11 * s, m_bracer, origin='center')
+        cyl(n + '_bracer' + side, el, (0, 0, -0.17 * armf * s), 0.098 * w * s, 0.11 * s,
+            m_bracer, origin='center')
 
+    # reperes utiles pour cadrage cameras
+    rig['neck_z'] = (0.64 * legf + 0.04 + 0.62) * s
+    rig['height'] = rig['neck_z'] + (0.27 + 0.34) * s * hf
     return rig
 
 
-def _headgear(rig, cls, variant, neck, S3, M):
-    n = rig['root'].name
+# ------------------------------------------------------------- visage v3 ----
+
+def _face(rig, n, headE, S3h, M):
+    """Visage Pixar : grands yeux (blanc + iris + pupille + reflet),
+    sourire, nez, oreilles et features raciales."""
+    race, genre = rig['race'], rig['genre']
+    R = RACES[race]
+    s = rig['s']
+    fem = (genre == 'f')
+    m_skin = M['skin']
+    m_white = mat('eye_white3', (0.96, 0.95, 0.92), rough=0.25)
+    m_iris = mat('iris_' + race, R['iris'], rough=0.15,
+                 emit=R['iris'], emit_strength=0.35)
+    m_pupil = mat('pupil3', (0.02, 0.02, 0.025), rough=0.2)
+    m_glint = mat('eye_glint', (1.0, 1.0, 1.0), rough=0.1,
+                  emit=(1.0, 1.0, 1.0), emit_strength=2.0)
+    m_lip = mat('lip3', (0.42, 0.16, 0.13), rough=0.55)
+    hair_col = R['hair'] or (0.30, 0.28, 0.26)
+    m_brow = mat(n + '_brow', hair_col if race != 'drakeide' else R['skin'], rough=0.8)
+
+    # parametres raciaux des yeux
+    ex, ez = 0.118, 0.305
+    wsc = (0.085, 0.048, 0.105)   # blanc
+    isc = (0.054, 0.030, 0.066)   # iris
+    psc = (0.027, 0.020, 0.036)   # pupille
+    erz = 0.0                     # rotation amande
+    if race == 'elfe':
+        wsc = (0.092, 0.044, 0.090); erz = 14
+    elif race == 'gobelin':
+        ex = 0.128; wsc = (0.10, 0.052, 0.118); isc = (0.064, 0.032, 0.078)
+        psc = (0.034, 0.022, 0.044)
+    elif race == 'orc':
+        wsc = (0.080, 0.048, 0.088); ez = 0.295
+    elif race == 'nain':
+        wsc = (0.078, 0.048, 0.092)
+    elif race == 'drakeide':
+        wsc = (0.082, 0.046, 0.096)
+        psc = (0.013, 0.020, 0.052)   # pupille fendue verticale
+
+    for sd in (-1, 1):
+        sfx = 'L' if sd < 0 else 'R'
+        sphere(n + '_eyeW' + sfx, headE, S3h(sd * ex, -0.262, ez),
+               S3h(*wsc), m_white, rot=(0, 0, -sd * erz))
+        sphere(n + '_iris' + sfx, headE, S3h(sd * ex, -0.292, ez),
+               S3h(*isc), m_iris)
+        sphere(n + '_pupil' + sfx, headE, S3h(sd * ex, -0.305, ez),
+               S3h(*psc), m_pupil)
+        sphere(n + '_glint' + sfx, headE,
+               S3h(sd * ex - 0.026, -0.322, ez + 0.034),
+               S3h(0.0145, 0.010, 0.0145), m_glint, seg=12, rings=8)
+        # cils marques pour f : trait fin au bord superieur de l'oeil
+        if fem:
+            box(n + '_lash' + sfx, headE, S3h(sd * ex, -0.292, ez + wsc[2] * 0.84),
+                S3h(wsc[0] * 1.85, 0.018, 0.014), m_pupil, rot=(0, 0, -sd * (6 + erz)),
+                bevel=0.004)
+
+    # sourcils
+    bz, bsc, brot = 0.408, (0.105, 0.042, 0.034), 9
+    if race == 'orc':
+        bz, bsc, brot = 0.388, (0.135, 0.060, 0.052), 12      # sourcils lourds
+    elif race == 'drakeide':
+        bz, bsc, brot = 0.415, (0.115, 0.055, 0.040), 8       # arcades ecailleuses
+    if fem:
+        bsc = (bsc[0] * 0.88, bsc[1] * 0.8, bsc[2] * 0.65)
+        brot = max(3, brot - 5)
+    box(n + '_browL', headE, S3h(-ex, -0.272, bz), S3h(*bsc), m_brow, rot=(0, 0, -brot), bevel=0.01)
+    box(n + '_browR', headE, S3h(ex, -0.272, bz), S3h(*bsc), m_brow, rot=(0, 0, brot), bevel=0.01)
+
+    # nez + museau
+    if race == 'drakeide':
+        sphere(n + '_snout', headE, S3h(0, -0.28, 0.20), S3h(0.155, 0.135, 0.115), m_skin)
+        for sd in (-1, 1):  # narines
+            sphere(n + '_nostril%d' % sd, headE, S3h(sd * 0.05, -0.405, 0.235),
+                   S3h(0.016, 0.010, 0.013), m_pupil)
+    elif race == 'nain':
+        sphere(n + '_nose', headE, S3h(0, -0.315, 0.235), S3h(0.058, 0.052, 0.052), m_skin)
+    elif race == 'gobelin':
+        cone(n + '_nose', headE, S3h(0, -0.345, 0.235), 0.035 * s, 0.008 * s,
+             0.14 * s, m_skin, rot=(96, 0, 0), verts=10)
+    elif race == 'orc':
+        sphere(n + '_nose', headE, S3h(0, -0.310, 0.230), S3h(0.060, 0.040, 0.038), m_skin)
+    else:
+        sphere(n + '_nose', headE, S3h(0, -0.305, 0.235), S3h(0.035, 0.030, 0.040), m_skin)
+
+    # bouche souriante (tore incline : seul l'arc inferieur depasse)
+    if race == 'drakeide':
+        torus(n + '_smile', headE, S3h(0, -0.330, 0.135), 0.085 * s, 0.014 * s,
+              m_lip, rot=(62, 0, 0))
+    elif race == 'gobelin':
+        torus(n + '_smile', headE, S3h(0, -0.252, 0.16), 0.115 * s, 0.016 * s,
+              m_lip, rot=(60, 0, 0))
+        for sd in (-1, 1):  # petites dents
+            box(n + '_tooth%d' % sd, headE, S3h(sd * 0.055, -0.302, 0.115),
+                S3h(0.020, 0.012, 0.024), m_white, bevel=0.004)
+    elif race == 'orc':
+        torus(n + '_smile', headE, S3h(0, -0.262, 0.155), 0.095 * s, 0.013 * s,
+              m_lip, rot=(60, 0, 0))
+        # machoire large + defenses vers le haut bien visibles
+        sphere(n + '_jaw', headE, S3h(0, -0.085, 0.095), S3h(0.295, 0.26, 0.16), m_skin)
+        m_tusk = mat('tusk_ivory', (0.97, 0.94, 0.85), rough=0.3)
+        for sd in (-1, 1):
+            cone(n + '_tusk%d' % sd, headE, S3h(sd * 0.115, -0.30, 0.155),
+                 0.034 * s, 0.005 * s, 0.15 * s, m_tusk, rot=(-14, 0, sd * 16), verts=10)
+    else:
+        torus(n + '_smile', headE, S3h(0, -0.255, 0.165), 0.082 * s, 0.0135 * s,
+              m_lip, rot=(62, 0, 0))
+
+    # oreilles
+    if race == 'elfe':
+        for sd in (-1, 1):
+            cone(n + '_ear%d' % sd, headE, S3h(sd * 0.36, 0.01, 0.315),
+                 0.048 * s, 0.005 * s, 0.30 * s, m_skin,
+                 rot=(0, sd * 78, sd * 16), verts=10)
+    elif race == 'gobelin':
+        for sd in (-1, 1):
+            cone(n + '_ear%d' % sd, headE, S3h(sd * 0.40, 0.02, 0.32),
+                 0.075 * s, 0.008 * s, 0.36 * s, m_skin,
+                 rot=(0, sd * 80, sd * 6), verts=10)
+    elif race == 'orc':
+        for sd in (-1, 1):
+            cone(n + '_ear%d' % sd, headE, S3h(sd * 0.31, 0.01, 0.31),
+                 0.042 * s, 0.006 * s, 0.13 * s, m_skin, rot=(0, sd * 82, 0), verts=10)
+    elif race in ('humain', 'nain'):
+        for sd in (-1, 1):
+            sphere(n + '_ear%d' % sd, headE, S3h(sd * 0.305, 0.0, 0.28),
+                   S3h(0.045, 0.05, 0.06), m_skin)
+
+    # cornes drakeide (2 segments, bone)
+    if race == 'drakeide':
+        m_bone = mat('horn_bone', (0.88, 0.84, 0.74), rough=0.45)
+        for sd in (-1, 1):
+            cone(n + '_horn%d' % sd, headE, S3h(sd * 0.145, 0.085, 0.50),
+                 0.055 * s, 0.022 * s, 0.20 * s, m_bone, rot=(-32, 0, sd * 14), verts=12)
+            cone(n + '_horntip%d' % sd, headE, S3h(sd * 0.185, 0.165, 0.625),
+                 0.024 * s, 0.002 * s, 0.14 * s, m_bone, rot=(-58, 0, sd * 18), verts=10)
+
+    # barbe naine (m) : enorme, tressee
+    if race == 'nain':
+        m_hair = mat('hair_nain', R['hair'], rough=0.85)
+        if not fem:
+            # barbe drapee DEVANT le torse (rot 30 deg, bien en avant)
+            cone(n + '_beard', headE, S3h(0, -0.30, -0.07), 0.21 * s, 0.05 * s,
+                 0.46 * s, m_hair, rot=(26, 0, 0), verts=16)
+            for sd in (-1, 1):  # tresses + anneaux dores
+                cyl(n + '_braid%d' % sd, headE, S3h(sd * 0.10, -0.30, 0.06),
+                    0.038 * s, 0.32 * s, m_hair, rot=(22, 0, sd * 7))
+                torus(n + '_ring%d' % sd, headE, S3h(sd * 0.135, -0.40, -0.16),
+                      0.042 * s, 0.014 * s, M['gold'], rot=(70, 0, sd * 7))
+            # moustache
+            for sd in (-1, 1):
+                sphere(n + '_mous%d' % sd, headE, S3h(sd * 0.065, -0.305, 0.150),
+                       S3h(0.065, 0.030, 0.030), m_hair, rot=(0, 0, -sd * 22))
+        else:  # f : deux tresses laterales
+            for sd in (-1, 1):
+                cyl(n + '_braid%d' % sd, headE, S3h(sd * 0.24, -0.10, 0.10),
+                    0.045 * s, 0.34 * s, m_hair, rot=(6, 0, sd * 10))
+                torus(n + '_ring%d' % sd, headE, S3h(sd * 0.275, -0.135, -0.20),
+                      0.048 * s, 0.015 * s, M['gold'], rot=(80, 0, sd * 10))
+
+
+def _hair(rig, n, headE, S3h, M, covered):
+    """Cheveux raciaux : crane (si non couvert) + cheveux longs dans le dos."""
+    race, genre = rig['race'], rig['genre']
+    R = RACES[race]
+    s = rig['s']
+    fem = (genre == 'f')
+    if R['hair'] is None:       # drakeide : pas de cheveux, crete dorsale
+        if not covered:
+            m_bone = mat('horn_bone', (0.88, 0.84, 0.74), rough=0.45)
+            for i, (dy, dz, sc) in enumerate([(0.10, 0.52, 0.05), (0.18, 0.44, 0.04), (0.235, 0.33, 0.032)]):
+                cone(n + '_crest%d' % i, headE, S3h(0, dy, dz), sc * s, 0.004 * s,
+                     0.10 * s, m_bone, rot=(35 + 18 * i, 0, 0), verts=8)
+        return
+    m_hair = mat('hair_' + race, R['hair'], rough=0.85)
+    if not covered:
+        sphere(n + '_hairc', headE, S3h(0, 0.05, 0.36), S3h(0.335, 0.315, 0.295), m_hair)
+        # meche frontale douce
+        sphere(n + '_fringe', headE, S3h(0, -0.235, 0.435), S3h(0.24, 0.115, 0.10), m_hair, rot=(18, 0, 0))
+    if fem:
+        # chevelure longue dans le dos (compatible casque)
+        sphere(n + '_hairb', headE, S3h(0, 0.215, 0.06), S3h(0.255, 0.175, 0.40), m_hair)
+        if race == 'elfe':      # longue tresse
+            cyl(n + '_braidb', headE, S3h(0, 0.27, -0.10), 0.052 * s, 0.42 * s,
+                m_hair, rot=(-14, 0, 0))
+            sphere(n + '_braidtip', headE, S3h(0, 0.355, -0.50), S3h(0.055, 0.055, 0.085), m_hair)
+            torus(n + '_btie', headE, S3h(0, 0.335, -0.42), 0.05 * s, 0.013 * s,
+                  M['gold'], rot=(76, 0, 0))
+    elif race == 'elfe':
+        # elfe m : cheveux mi-longs
+        sphere(n + '_hairb', headE, S3h(0, 0.19, 0.10), S3h(0.27, 0.16, 0.30), m_hair)
+
+
+def _headgear(rig, cls, variant, headE, S3h, M):
+    """Couvre-chef de classe (parente a headE, donc suit la taille raciale).
+    Retourne True si le crane est couvert (pas de cheveux a poser)."""
+    n = rig['root'].name[:-5]  # retire '_root'
     s, w = rig['s'], rig['w']
+    race = rig.get('race', 'humain')
+    S3 = S3h
+    covered = True
+    no_class_beard = race in ('nain', 'elfe', 'gobelin', 'drakeide', 'orc') or rig.get('genre') == 'f'
     if cls == 'bretteur':
         if variant in (0, 2):
-            sphere(n + '_helm', neck, S3(0, 0.045, 0.315), S3(0.345, 0.33, 0.33), M['armor'])
-            box(n + '_cheekL', neck, S3(-0.27, -0.16, 0.22), S3(0.10, 0.16, 0.22), M['armor'], rot=(0, 0, -15))
-            box(n + '_cheekR', neck, S3(0.27, -0.16, 0.22), S3(0.10, 0.16, 0.22), M['armor'], rot=(0, 0, 15))
+            sphere(n + '_helm', headE, S3(0, 0.055, 0.34), S3(0.345, 0.325, 0.30), M['armor'])
+            box(n + '_cheekL', headE, S3(-0.27, -0.16, 0.22), S3(0.10, 0.16, 0.22), M['armor'], rot=(0, 0, -15))
+            box(n + '_cheekR', headE, S3(0.27, -0.16, 0.22), S3(0.10, 0.16, 0.22), M['armor'], rot=(0, 0, 15))
             m_crest = mat('crest_red', (0.72, 0.07, 0.06), rough=0.7) if variant == 0 else M['gold']
-            box(n + '_crest', neck, S3(0, 0.03, 0.66), S3(0.07, 0.52, 0.20), m_crest, rot=(-8, 0, 0))
+            box(n + '_crest', headE, S3(0, 0.03, 0.66), S3(0.07, 0.52, 0.20), m_crest, rot=(-8, 0, 0))
         else:
-            m_hair = mat('hair_brn', (0.22, 0.12, 0.05), rough=0.85)
-            sphere(n + '_hair', neck, S3(0, 0.05, 0.36), S3(0.335, 0.32, 0.28), m_hair)
+            covered = False
     elif cls == 'colosse':
-        sphere(n + '_helm', neck, S3(0, 0.0, 0.28), S3(0.37, 0.35, 0.37), M['armor'])
+        # v3 : casque OUVERT (le visage Pixar doit rester visible)
+        sphere(n + '_helm', headE, S3(0, 0.06, 0.37), S3(0.355, 0.33, 0.30), M['armor'])
         m_cop = mat('copper', (0.72, 0.35, 0.16), metallic=1.0, rough=0.35)
-        if variant in (0, 1):
-            box(n + '_slit', neck, S3(0, -0.345, 0.28), S3(0.30, 0.04, 0.05), M['dark'], bevel=0.01)
-            if variant == 0:
-                cone(n + '_hornL', neck, S3(-0.36, 0, 0.42), 0.085 * s, 0.0, 0.26 * s, m_cop, rot=(0, -50, 0))
-                cone(n + '_hornR', neck, S3(0.36, 0, 0.42), 0.085 * s, 0.0, 0.26 * s, m_cop, rot=(0, 50, 0))
-            else:
-                box(n + '_fin', neck, S3(0, 0.05, 0.62), S3(0.06, 0.42, 0.22), m_cop, rot=(-5, 0, 0))
-        else:
-            torus(n + '_brim', neck, S3(0, 0, 0.30), 0.36 * w * s, 0.05 * s, m_cop)
+        torus(n + '_brim', headE, S3(0, 0.045, 0.335), 0.345 * s, 0.05 * s, m_cop, rot=(10, 0, 0))
+        if variant == 0:
+            cone(n + '_hornL', headE, S3(-0.36, 0.05, 0.48), 0.105 * s, 0.0, 0.34 * s, m_cop, rot=(0, -52, 0))
+            cone(n + '_hornR', headE, S3(0.36, 0.05, 0.48), 0.105 * s, 0.0, 0.34 * s, m_cop, rot=(0, 52, 0))
+        elif variant == 1:
+            box(n + '_fin', headE, S3(0, 0.07, 0.64), S3(0.06, 0.42, 0.22), m_cop, rot=(-5, 0, 0))
     elif cls == 'roublard':
         m_hood = M['armor']
         if variant in (0, 2):
-            sphere(n + '_hood', neck, S3(0, 0.06, 0.33), S3(0.37, 0.37, 0.38), m_hood)
-            cone(n + '_hoodtip', neck, S3(0, 0.22, 0.55), 0.16 * s, 0.0, 0.30 * s, m_hood, rot=(40, 0, 0))
+            sphere(n + '_hood', headE, S3(0, 0.06, 0.33), S3(0.37, 0.37, 0.38), m_hood)
+            cone(n + '_hoodtip', headE, S3(0, 0.22, 0.55), 0.16 * s, 0.0, 0.30 * s, m_hood, rot=(40, 0, 0))
             if variant == 2:
-                box(n + '_mask', neck, S3(0, -0.30, 0.17), S3(0.40, 0.10, 0.16), M['dark'], bevel=0.02)
+                box(n + '_mask', headE, S3(0, -0.30, 0.17), S3(0.40, 0.10, 0.16), M['dark'], bevel=0.02)
         else:
-            box(n + '_bandana', neck, S3(0, 0, 0.44), S3(0.62, 0.60, 0.14), m_hood, bevel=0.04)
+            box(n + '_bandana', headE, S3(0, 0, 0.44), S3(0.62, 0.60, 0.14), m_hood, bevel=0.04)
         m_scarf = mat('scarf', (0.16, 0.26, 0.16), rough=0.8)
-        torus(n + '_scarf', neck, S3(0, 0, 0.06), 0.20 * w * s, 0.07 * s, m_scarf)
+        torus(n + '_scarf', headE, S3(0, 0, 0.06), 0.20 * w * s, 0.07 * s, m_scarf)
     elif cls == 'lancier':
-        sphere(n + '_helm', neck, S3(0, 0.04, 0.315), S3(0.345, 0.33, 0.33), M['steel'])
-        box(n + '_nose', neck, S3(0, -0.31, 0.26), S3(0.06, 0.06, 0.22), M['steel'], bevel=0.01)
+        sphere(n + '_helm', headE, S3(0, 0.05, 0.345), S3(0.345, 0.325, 0.30), M['steel'])
         m_plume = mat('plume_w', (0.92, 0.92, 0.95), rough=0.9)
         if variant == 0:
             for i in range(3):
-                sphere(n + '_plume%d' % i, neck, S3(0, 0.02 + 0.0 * i, 0.62 + 0.10 * (1 - abs(i - 1))),
+                sphere(n + '_plume%d' % i, headE, S3(0, 0.02 + 0.0 * i, 0.62 + 0.10 * (1 - abs(i - 1))),
                        S3(0.05, 0.10, 0.26), m_plume, rot=(-10 + 10 * i, 0, 0))
         elif variant == 1:
             for sx in (-0.12, 0.12):
-                sphere(n + '_plume%s' % sx, neck, S3(sx, 0.02, 0.62), S3(0.05, 0.10, 0.26), m_plume)
+                sphere(n + '_plume%s' % sx, headE, S3(sx, 0.02, 0.62), S3(0.05, 0.10, 0.26), m_plume)
         else:
-            torus(n + '_crown', neck, S3(0, 0, 0.42), 0.26 * w * s, 0.045 * s, M['gold'])
+            torus(n + '_crown', headE, S3(0, 0, 0.42), 0.26 * w * s, 0.045 * s, M['gold'])
     elif cls == 'mage':
         if variant == 0:
+            # chapeau pointu repousse vers l'arriere : le visage reste visible
+            # depuis la camera sprite (elevation 55 deg)
             m_hat = M['armor']
-            cone(n + '_hatbrim', neck, S3(0, 0, 0.42), 0.44 * s, 0.40 * s, 0.04 * s, m_hat)
-            cone(n + '_hat', neck, S3(0, 0.03, 0.62), 0.27 * s, 0.0, 0.46 * s, m_hat, rot=(8, 0, 0))
+            cone(n + '_hatbrim', headE, S3(0, 0.085, 0.475), 0.42 * s, 0.36 * s, 0.045 * s,
+                 m_hat, rot=(17, 0, 0), verts=24)
+            cone(n + '_hat', headE, S3(0, 0.15, 0.65), 0.24 * s, 0.0, 0.44 * s, m_hat, rot=(24, 0, 0))
+            sphere(n + '_hattip', headE, S3(0, 0.285, 0.825), S3(0.05, 0.05, 0.05), m_hat)
+            torus(n + '_hatband', headE, S3(0, 0.10, 0.50), 0.245 * s, 0.025 * s,
+                  M['gold'], rot=(17, 0, 0))
         elif variant == 1:
-            sphere(n + '_hood', neck, S3(0, 0.06, 0.33), S3(0.37, 0.37, 0.38), M['armor'])
+            sphere(n + '_hood', headE, S3(0, 0.06, 0.33), S3(0.37, 0.37, 0.38), M['armor'])
         else:
-            m_hairg = mat('hair_grey', (0.75, 0.75, 0.72), rough=0.9)
-            sphere(n + '_hair', neck, S3(0, 0.06, 0.34), S3(0.34, 0.33, 0.30), m_hairg)
-            torus(n + '_circlet', neck, S3(0, 0, 0.40), 0.30 * w * s, 0.025 * s, M['gold'])
-        if variant == 2 or variant == 0:
+            covered = False
+            torus(n + '_circlet', headE, S3(0, 0, 0.42), 0.30 * s, 0.025 * s, M['gold'])
+        if (variant == 2 or variant == 0) and not no_class_beard:
             m_beard = mat('beard_grey', (0.80, 0.80, 0.78), rough=0.9)
-            cone(n + '_beard', neck, S3(0, -0.26, 0.02), 0.14 * s, 0.02 * s, 0.34 * s, m_beard, rot=(12, 0, 0))
+            cone(n + '_beard', headE, S3(0, -0.26, 0.02), 0.14 * s, 0.02 * s, 0.34 * s, m_beard, rot=(12, 0, 0))
     elif cls == 'berserker':
-        m_hair = mat('hair_red', (0.42, 0.14, 0.04), rough=0.9)
+        hair_col = RACES[race]['hair'] or (0.42, 0.14, 0.04)
+        m_hair = mat('hair_bz_' + race, hair_col, rough=0.9)
         if variant == 0:
-            sphere(n + '_hair', neck, S3(0, 0.07, 0.37), S3(0.36, 0.36, 0.32), m_hair)
-            sphere(n + '_hair2', neck, S3(0, 0.22, 0.18), S3(0.25, 0.22, 0.30), m_hair)
+            if race != 'drakeide':
+                sphere(n + '_hairA', headE, S3(0, 0.07, 0.37), S3(0.355, 0.35, 0.31), m_hair)
+                sphere(n + '_hair2', headE, S3(0, 0.22, 0.18), S3(0.25, 0.22, 0.30), m_hair)
+            else:
+                covered = False
         elif variant == 1:
-            box(n + '_mohawk', neck, S3(0, 0.02, 0.60), S3(0.08, 0.50, 0.22), m_hair, bevel=0.03)
+            box(n + '_mohawk', headE, S3(0, 0.02, 0.60), S3(0.08, 0.50, 0.22), m_hair, bevel=0.03)
+            covered = (race == 'drakeide')
         else:
-            torus(n + '_band', neck, S3(0, 0, 0.34), 0.31 * w * s, 0.04 * s, M['leather'])
+            torus(n + '_band', headE, S3(0, 0, 0.34), 0.31 * s, 0.04 * s, M['leather'])
             m_cop2 = mat('copper', (0.72, 0.35, 0.16), metallic=1.0, rough=0.35)
-            cone(n + '_hL', neck, S3(-0.32, 0, 0.46), 0.07 * s, 0.0, 0.22 * s, m_cop2, rot=(0, -45, 0))
-            cone(n + '_hR', neck, S3(0.32, 0, 0.46), 0.07 * s, 0.0, 0.22 * s, m_cop2, rot=(0, 45, 0))
-        cone(n + '_beard', neck, S3(0, -0.25, 0.0), 0.16 * s, 0.03 * s, 0.36 * s, m_hair, rot=(10, 0, 0))
+            cone(n + '_hL', headE, S3(-0.32, 0, 0.46), 0.07 * s, 0.0, 0.22 * s, m_cop2, rot=(0, -45, 0))
+            cone(n + '_hR', headE, S3(0.32, 0, 0.46), 0.07 * s, 0.0, 0.22 * s, m_cop2, rot=(0, 45, 0))
+            covered = False
+        if not no_class_beard:
+            cone(n + '_beardb', headE, S3(0, -0.25, 0.0), 0.16 * s, 0.03 * s, 0.36 * s, m_hair, rot=(10, 0, 0))
+    return covered
 
 
 def _weapons(rig, cls, variant, grip_l, grip_r, el_l, s, w, M):
