@@ -8,7 +8,7 @@ import { genererCalendrierLigue } from './competitions';
 import { genGladiateur, ovrCibleDivision } from './generation';
 import { regenererMarche } from './marche';
 
-export const VERSION_SAVE = 1;
+export const VERSION_SAVE = 2;
 
 function creerEquipeIA(etat: GameState, rng: RNG, nom: string, couleur: string, division: number): Team {
   const eq: Team = {
@@ -57,6 +57,7 @@ export function nouvellePartie(seed: number, nomEcurie: string): GameState {
     entrainement: {},
     matchJoue: false,
     historiqueTresorerie: [],
+    placements: {},
     flags: {},
     gameOver: false,
   };

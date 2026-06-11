@@ -27,6 +27,7 @@ import { genGladiateur, genNom, noteGlobale, ovrCibleInternational, palierDeGlad
 import { composerEquipeIA, gererEquipesIA, meilleureVenteForcee, purgerGladiateursOrphelins } from './ia';
 import { genererOffresIA, purgerOffres, regenererMarche } from './marche';
 import { NOMS_CLASSES } from '../data/noms';
+import { TALENTS } from '../data/talents';
 
 export function rngDe(etat: GameState): RNG {
   return new RNG(etat.rngState);
@@ -146,6 +147,19 @@ export function enregistrerMatchJoueur(
   }
 
   appliquerSequelles(etat, rng, res, 0, victoire, nul, competition === 'amical', titulaires, messages);
+
+  // révélation des talents cachés qui se sont déclenchés sous vos yeux
+  for (const u of res.unites) {
+    if (u.equipe !== 0) continue;
+    const g = etat.gladiateurs[u.gid];
+    if (!g) continue;
+    for (const t of u.talentsDeclenches) {
+      if (g.talents.includes(t) && !g.talentsConnus.includes(t)) {
+        g.talentsConnus.push(t);
+        messages.push(`🎭 Talent découvert : ${g.nom} possède « ${TALENTS[t].nom} » !`);
+      }
+    }
+  }
   sauverRng(etat, rng);
   return messages;
 }

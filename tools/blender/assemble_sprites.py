@@ -7,7 +7,7 @@ from PIL import Image
 BASE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(BASE, 'out', 'sprites')
 DEST = os.path.join(BASE, '..', '..', 'public', 'assets', 'sprites')
-CELL = 128
+CELL = 160
 DIRS = ['S', 'E', 'N', 'W']
 ANIMS = [('idle', 2), ('walk', 4), ('attack', 4), ('hit', 1), ('death', 2)]
 CLASSES = ['colosse', 'bretteur', 'roublard', 'lancier', 'mage', 'berserker']

@@ -2,6 +2,7 @@
 
 import { ARENE, resultatCombat, simulerJusquAuBout, tickCombat, type CombatState, type ResultatCombat, type UniteCombat } from '../game/combat';
 import { BALANCE } from '../data/balance';
+import { TALENTS } from '../data/talents';
 import { assets } from './assets';
 
 interface TexteFlottant {
@@ -136,10 +137,43 @@ export class CombatRender {
       } else if (e.type === 'esquive') {
         const u = this.cs.unites[e.cibleIdx];
         if (u) this.textes.push({ x: u.x, y: u.y - 50, texte: 'esquive !', couleur: '#8fd3ff', t: 0 });
-      } else if (e.type === 'impactFeu') {
-        this.ronds.push({ x: e.x, y: e.y, rayonMax: 46, couleur: '255,120,40', t: 0, duree: 0.35 });
-        this.textes.push({ x: e.x, y: e.y - 54, texte: String(e.deg), couleur: '#ffab40', t: 0 });
-        this.secousse = Math.max(this.secousse, 0.2);
+      } else if (e.type === 'bloc') {
+        const u = this.cs.unites[e.cibleIdx];
+        if (u) {
+          this.textes.push({ x: u.x, y: u.y - 50, texte: 'BLOQUÉ', couleur: '#cfd8e3', t: 0 });
+          this.ronds.push({ x: u.x, y: u.y - 20, rayonMax: 30, couleur: '200,215,235', t: 0, duree: 0.25 });
+        }
+      } else if (e.type === 'immunise') {
+        const u = this.cs.unites[e.cibleIdx];
+        if (u) this.textes.push({ x: u.x, y: u.y - 50, texte: 'immunisé', couleur: '#e8e8f5', t: 0 });
+      } else if (e.type === 'talent') {
+        const u = this.cs.unites[e.idx];
+        if (u) {
+          this.textes.push({ x: u.x, y: u.y - 78, texte: `✨ ${TALENTS[e.talent].nom}`, couleur: '#ffd54a', t: 0, grand: true });
+          if (e.talent === 'fumigene') {
+            for (let k = 0; k < 5; k++) {
+              this.ronds.push({ x: u.x + (Math.random() - 0.5) * 40, y: u.y - 14 + (Math.random() - 0.5) * 30, rayonMax: 26 + Math.random() * 18, couleur: '170,170,178', t: 0, duree: 0.9 });
+            }
+          } else if (e.talent === 'dash') {
+            this.ronds.push({ x: u.x, y: u.y, rayonMax: 42, couleur: '110,220,255', t: 0, duree: 0.4 });
+          } else if (e.talent === 'rage') {
+            this.ronds.push({ x: u.x, y: u.y - 14, rayonMax: 52, couleur: '255,70,40', t: 0, duree: 0.6 });
+          } else if (e.talent === 'carapace') {
+            this.ronds.push({ x: u.x, y: u.y - 14, rayonMax: 48, couleur: '190,200,215', t: 0, duree: 0.6 });
+          } else if (e.talent === 'secondevie') {
+            this.ronds.push({ x: u.x, y: u.y - 14, rayonMax: 64, couleur: '255,215,90', t: 0, duree: 0.8 });
+            this.secousse = Math.max(this.secousse, 0.35);
+          }
+        }
+      } else if (e.type === 'impactProj') {
+        if (e.projectile === 'feu') {
+          this.ronds.push({ x: e.x, y: e.y, rayonMax: 46, couleur: '255,120,40', t: 0, duree: 0.35 });
+          this.textes.push({ x: e.x, y: e.y - 54, texte: String(e.deg), couleur: '#ffab40', t: 0 });
+          this.secousse = Math.max(this.secousse, 0.2);
+        } else {
+          this.ronds.push({ x: e.x, y: e.y, rayonMax: 22, couleur: '230,230,240', t: 0, duree: 0.2 });
+          this.textes.push({ x: e.x, y: e.y - 54, texte: String(e.deg), couleur: '#ffe0a3', t: 0 });
+        }
       } else if (e.type === 'nova') {
         this.ronds.push({ x: e.x, y: e.y, rayonMax: e.rayon, couleur: '170,90,255', t: 0, duree: 0.55 });
         this.secousse = Math.max(this.secousse, 0.35);
@@ -230,8 +264,30 @@ export class CombatRender {
       const u = this.cs.unites[i];
       if (!u) continue;
 
-      // anneau d'équipe sous les pieds
+      // anneau d'équipe sous les pieds + auras de talents
       if (u.vivant) {
+        if (u.invincibleT > 0) {
+          ctx.globalAlpha = 0.45 + 0.3 * Math.sin(ts * 14);
+          ctx.fillStyle = 'rgba(240,240,255,0.5)';
+          ctx.beginPath();
+          ctx.ellipse(u.x, u.y - 28, 36, 48, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        if (u.rageActive) {
+          ctx.strokeStyle = 'rgba(255,60,30,0.55)';
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.ellipse(u.x, u.y + 4, 32, 16, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        if (u.carapaceActive) {
+          ctx.strokeStyle = 'rgba(200,210,225,0.6)';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.ellipse(u.x, u.y + 4, 30, 15, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
         ctx.strokeStyle = u.equipe === 0 ? 'rgba(80,220,120,0.85)' : 'rgba(255,90,70,0.85)';
         ctx.lineWidth = 3.5;
         ctx.beginPath();
@@ -278,18 +334,41 @@ export class CombatRender {
       }
     }
 
-    // projectiles (boules de feu)
-    ctx.globalCompositeOperation = 'lighter';
+    // projectiles : boules de feu lumineuses, couteaux et javelots métalliques
     for (const p of this.cs.projectiles) {
-      const grad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 18);
-      grad.addColorStop(0, 'rgba(255,240,180,0.95)');
-      grad.addColorStop(0.4, 'rgba(255,140,40,0.8)');
-      grad.addColorStop(1, 'rgba(255,80,20,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
-      ctx.fill();
+      if (p.type === 'feu') {
+        ctx.globalCompositeOperation = 'lighter';
+        const grad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 18);
+        grad.addColorStop(0, 'rgba(255,240,180,0.95)');
+        grad.addColorStop(0.4, 'rgba(255,140,40,0.8)');
+        grad.addColorStop(1, 'rgba(255,80,20,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+      } else {
+        const long = p.type === 'javelot' ? 30 : 16;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle + (p.type === 'couteau' ? this.cs.t * 22 : 0));
+        ctx.strokeStyle = '#d9dde6';
+        ctx.lineWidth = p.type === 'javelot' ? 4 : 3;
+        ctx.beginPath();
+        ctx.moveTo(-long / 2, 0);
+        ctx.lineTo(long / 2, 0);
+        ctx.stroke();
+        ctx.fillStyle = '#9aa3b2';
+        ctx.beginPath();
+        ctx.moveTo(long / 2 + 6, 0);
+        ctx.lineTo(long / 2 - 3, -4);
+        ctx.lineTo(long / 2 - 3, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
     }
+    ctx.globalCompositeOperation = 'lighter';
 
     // effets ronds (nova, impacts)
     this.ronds = this.ronds.filter((r) => r.t < r.duree);

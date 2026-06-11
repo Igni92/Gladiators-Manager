@@ -18,7 +18,7 @@ export function rendreArene(): void {
   racine.innerHTML = '';
 
   const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-arene' });
-  ecran.append(enTete('Arène'));
+  ecran.append(enTete('Arène', () => jeu.aller('ville'), 'arene'));
 
   const onglets: { id: Onglet; nom: string }[] = [
     { id: 'match', nom: 'Match' },

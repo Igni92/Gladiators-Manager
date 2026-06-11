@@ -59,7 +59,17 @@ try {
   await page.waitForSelector('[data-testid="btn-commencer"]');
   await page.tap('[data-testid="btn-commencer"]');
   await page.waitForSelector('[data-testid="ecran-ville"]');
-  await attendre(900);
+  // tutoriel de première partie : capture puis fermeture
+  await page.waitForSelector('[data-testid="tuto"]', { timeout: 8000 });
+  await attendre(400);
+  await shot('02a-tuto');
+  for (let i = 0; i < 6; i++) {
+    const visible = await page.locator('[data-testid="tuto-suivant"]').isVisible().catch(() => false);
+    if (!visible) break;
+    await page.tap('[data-testid="tuto-suivant"]');
+    await attendre(250);
+  }
+  await attendre(600);
   await shot('02-ville');
 
   // helper : tape un bâtiment de la ville (coordonnées de render/ville.ts)
@@ -146,6 +156,10 @@ try {
   await page.waitForSelector('[data-testid="ecran-taverne"]');
   await shot('07-taverne');
 
+  // taux d'apparition visibles à la taverne
+  const tauxSS = await page.locator('[data-testid="taux-SS"]').count();
+  if (tauxSS === 0) erreurs.push('taverne : tableau des chances d’apparition absent');
+
   // ----- banque
   await page.tap('.btn-retour');
   await tapBatiment('banque');
@@ -196,6 +210,23 @@ try {
   await attendre(500);
   await shot('14-selection-equipe');
   await page.tap('[data-testid="btn-combattre"]');
+  // phase de placement façon AFK Arena
+  await page.waitForSelector('[data-testid="ecran-placement"]');
+  await attendre(600);
+  await shot('14b-placement');
+  // déplace le gladiateur sélectionné vers la colonne arrière (slot 5 : ligne milieu, col 2)
+  await page.locator('[data-testid="place-glad-0"]').tap();
+  const posSlot = await page.evaluate(() => {
+    const c = document.querySelector('[data-testid="canvas-placement"]');
+    const r = c.getBoundingClientRect();
+    const ech = r.width / 1000;
+    // slot 5 → col 2, ligne 1 → x = 500-330=170... coordonnées via la formule du jeu
+    const dx = 130 + 2 * 100;
+    return { x: r.left + (500 - dx) * ech, y: r.top + 500 * ech };
+  });
+  await page.touchscreen.tap(posSlot.x, posSlot.y);
+  await attendre(400);
+  await page.tap('[data-testid="btn-lancer-combat"]');
   await page.waitForSelector('[data-testid="canvas-combat"]');
   await attendre(2600);
   await page.tap('[data-testid="consigne-agressif"]');

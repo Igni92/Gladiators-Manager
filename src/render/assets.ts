@@ -16,7 +16,7 @@ export interface Atlas {
 }
 
 const CLASSES: ClassId[] = ['colosse', 'bretteur', 'roublard', 'lancier', 'mage', 'berserker'];
-const BATIMENTS = ['arene', 'marche', 'caserne', 'taverne', 'banque', 'infirmerie', 'fontaine', 'arbre_a', 'arbre_b', 'statue'];
+const BATIMENTS = ['arene', 'marche', 'caserne', 'taverne', 'banque', 'infirmerie', 'fontaine', 'arbre_a', 'arbre_b', 'statue', 'puits', 'caisses', 'charrette', 'lampe', 'buisson', 'sol_ville'];
 
 /** Échelle d'affichage relative par classe (le colosse est rendu avec une caméra plus large). */
 export const ECHELLE_CLASSE: Record<ClassId, number> = {

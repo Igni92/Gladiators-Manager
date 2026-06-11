@@ -20,12 +20,17 @@ JOBS = [
     ('arbre_a', lambda M: T.build_arbre(M, True), 256),
     ('arbre_b', lambda M: T.build_arbre(M, False), 256),
     ('statue', lambda M: T.build_statue(M), 256),
+    ('puits', lambda M: T.build_puits(M), 256),
+    ('caisses', lambda M: T.build_caisses(M), 256),
+    ('charrette', lambda M: T.build_charrette(M), 256),
+    ('lampe', lambda M: T.build_lampe(M), 256),
+    ('buisson', lambda M: T.build_buisson(M), 256),
 ]
 
 t0 = time.time()
 for name, builder, res in JOBS:
     G.reset_scene()
-    G.setup_render(res_x=res, res_y=res, samples=28, transparent=True)
+    G.setup_render(res_x=res, res_y=res, samples=32, transparent=True)
     M = T.mats()
     root, ortho, tz = builder(M)
     root.rotation_euler = (0, 0, __import__('math').radians(-34))

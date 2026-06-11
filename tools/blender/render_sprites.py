@@ -16,7 +16,7 @@ t0 = time.time()
 total = 0
 for cls in classes:
     G.reset_scene()
-    G.setup_render(res_x=128, res_y=128, samples=20, transparent=True)
+    G.setup_render(res_x=160, res_y=160, samples=28, transparent=True)
     rig = G.build_character(cls, 0)
     G.sprite_stage(ortho_scale=rig['ortho'], target_z=0.62 * rig['s'] + 0.35)
     anims = ANIMS + ([('cast', 4)] if cls == 'mage' else [])

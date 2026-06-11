@@ -12,7 +12,7 @@ t0 = time.time()
 for cls in G.CLASSES.keys():
     for v in range(3):
         G.reset_scene()
-        G.setup_render(res_x=512, res_y=512, samples=32, transparent=True)
+        G.setup_render(res_x=512, res_y=512, samples=48, transparent=True)
         rig = G.build_character(cls, v)
         G.apply_pose(rig, G.get_pose(cls, 'idle', 0), direction_deg=0)
         s = rig['s']

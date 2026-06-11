@@ -17,7 +17,7 @@ export function rendreCaserne(): void {
   const joueur = equipeJoueur(etat);
 
   const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-caserne' });
-  ecran.append(enTete('Caserne — entraînement'));
+  ecran.append(enTete('Caserne — entraînement', () => jeu.aller('ville'), 'caserne'));
   const contenu = el('div', { class: 'contenu' });
   contenu.append(
     el('div', { class: 'panneau texte-faible' },

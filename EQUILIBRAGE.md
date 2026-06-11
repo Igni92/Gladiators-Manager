@@ -15,18 +15,39 @@ complètes × 4 graines en « jeu normal » et 3 saisons × 3 graines en « inac
 | Progression | montée en Ligue d'Argent ou d'Or en ≤ 5 saisons |
 | Inactif (forfaits), 3 saisons | jamais plus riche qu'au départ, érosion lente |
 
-## Le moteur de combat (3c3, temps réel simulé à 30 ticks/s)
+## Le moteur de combat v2 (3c3, placement façon AFK Arena, 30 ticks/s)
+
+**Placement** : avant le combat, chaque équipe place ses 3 gladiateurs sur une
+grille 3×3 de sa moitié d'arène (colonnes avant/centre/arrière). Vérifié par la
+simu : une formation réfléchie bat « tout le monde devant » à ~60 % (le kiting
+des mages et tireurs est volontairement imparfait — recul à 55 % de la vitesse —
+pour qu'un mage mal placé se fasse punir).
 
 Chaque trait a un rôle précis :
 
-- **Force** : dégâts mêlée (`7 + FOR×0,32` × arme de classe) et PV (`110 + FOR×2,1 + ovr×0,9` × carrure).
+- **Force** : dégâts mêlée (`12 + FOR×0,20` × arme de classe) et une part des PV
+  (`110 + FOR×0,5 + ovr×2,1` × carrure — les PV viennent surtout de la note
+  globale : empiler la Force ne fabrique pas un tank, leçon de la chasse à la méta).
 - **Vitesse** : déplacement (`52 + VIT×1,05` u/s) et cadence (délai `2,0 − VIT×0,009` s, plancher 0,8 s).
-- **Intelligence** : temps de réaction (choix de cible), priorisation des cibles
-  blessées, et « garde » (réduction de dégâts subis, `INT×0,22 %`, cap 35 %).
-- **Fourberie** : critique `FOU×0,35 %` (×1,6 dans le dos), dégâts crit ×1,8.
-- **Esquive** : esquive mêlée `ESQ×0,45 %`, cap 38 % (inopérante contre la magie).
-- **Magie** : ≥ 60 → lanceur de sorts. Boule de feu (`18 + MAG×0,5`, cd 4,5 s),
-  nova de zone (`14 + MAG×0,34`, rayon 95, cd 10 s), soin (`16 + MAG×0,42`, cd 9 s).
+- **Intelligence** : temps de réaction, priorisation des cibles blessées, garde
+  (`INT×0,38 %`, cap 50 % cumulé) et **BLOCAGE** : `INT×0,13 %` (×2,2 avec
+  bouclier : bretteur/lancier/colosse), **×2,6 contre les attaques à distance**
+  (cap 45 %). Un blocage réduit les dégâts à 25 %.
+- **Fourberie** : critique `FOU×0,45 %` (×1,6 dans le dos, dégâts ×1,9) et
+  **attaques à distance** : couteaux (roublard) / javelots (lancier),
+  dégâts `7 + FOU×0,42`, portée 240-270, cadence ×1,35.
+- **Esquive** : esquive `ESQ×0,75 %`, cap 55 % (×0,85 contre les projectiles,
+  ×0,5 contre les boules de feu).
+- **Magie** : ≥ 60 → sorts. Boule de feu (`16 + MAG×0,45`, cd 5,5 s, esquivable
+  à demi et BLOCABLE comme un tir — c'est le contre des mages), nova
+  (`12 + MAG×0,27`, rayon 95, cd 10 s), soin (`12 + MAG×0,32`, cd 9 s).
+
+**Talents cachés** (jusqu'à 2, fréquence selon palier : D 10 %, C 28 %, B 50 %,
+A 72 %, S 92 %, SS 100 %) : fumigène (invincible 0,9 s après esquive), pas de
+l'ombre (dash dans le dos), riposte (contre après blocage), sang chaud (+20 %
+dégâts sous 35 % PV), peau de fer, soif de sang (vol de vie 16 %), exécuteur,
+premier sang, bras de fronde, increvable (survit au 1er coup fatal). Révélés
+quand ils se déclenchent dans VOS matchs.
 
 Multiplicateur d'état appliqué aux dégâts/vitesse/PV :
 `(0,92 + 0,10×satisfaction) × (0,90 + 0,20×moral/100) × (0,92 + 0,10×forme/100)`,
@@ -35,7 +56,7 @@ sa pente raisonnable à la courbe « différence de niveau → probabilité de v
 (sans elle, +5 ovr gagnait déjà ~90 % des matchs : injouable pour un promu).
 
 Consignes en direct : agressif (dégâts ×1,15, défenses ×0,85), défensif (inverse),
-magie (recharges des sorts ×0,65), ciblage prioritaire d'un adversaire au doigt.
+magie (recharges des sorts ×0,8), ciblage prioritaire d'un adversaire au doigt.
 
 ## Économie (PO = pièces d'or)
 
@@ -68,6 +89,25 @@ magie (recharges des sorts ×0,65), ciblage prioritaire d'un adversaire au doigt
   ~2 relances avant retrait.
 - **Blessures** : 30 % après K.O. (2-5 sem.), 5 % par participation (1-2 sem.),
   symétriques joueur/IA ; guérisseur : 90 PO par semaine de convalescence évitée.
+
+## Chasse à la méta (résultats de `npm run sim`)
+
+La simulation cherche activement les stratégies dégénérées :
+
+| Test | Résultat après calibration |
+|---|---|
+| Build 100 % mono-stat (tournoi round-robin) | Force 72 % (était 96 % !), Fourberie 46 %, Vitesse 30 %, Int 31 %, Esquive 26 % — aucun ≥ 80 % |
+| Build équilibré vs builds caricaturaux | ~95 % : la polyvalence est la valeur sûre (anti-méta par design) |
+| Gain marginal de +12 dans une stat | toutes les stats aident (61-72 %) sans dominer (≤ 78 %) |
+| Trio mono-classe vs trio varié | tous entre 30 % (mage) et 70 % (bretteur) — ni classe poubelle ni classe obligatoire |
+| Consigne unique permanente | agressif 52 %, défensif 38 %, magie 60 % — aucune ne remplace le pilotage |
+| 6 talents synergiques vs 0 | 87 % : ~+4 ovr d'équivalent par talent, le prix des hauts paliers |
+| Placement réfléchi vs tout-devant | 60 % : le placement compte |
+
+Corrections issues de cette chasse : PV décorrélés de la Force, boule de feu
+esquivable/blocable, kiting imparfait, tireurs qui chargent les boucliers
+(leurs projectiles y sont bloqués à 45 %), soins de mage réduits, consignes
+adoucies (±12 %).
 
 ## Structure de la saison (30 semaines)
 

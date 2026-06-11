@@ -18,7 +18,7 @@ export function rendreEquipe(): void {
   const joueur = equipeJoueur(etat);
 
   const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-equipe' });
-  ecran.append(enTete(`${joueur.nom}`));
+  ecran.append(enTete(`${joueur.nom}`, () => jeu.aller('ville'), 'equipe'));
   const contenu = el('div', { class: 'contenu' });
 
   contenu.append(

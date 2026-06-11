@@ -15,7 +15,7 @@ export function rendreInfirmerie(): void {
   const joueur = equipeJoueur(etat);
 
   const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-infirmerie' });
-  ecran.append(enTete('Infirmerie'));
+  ecran.append(enTete('Infirmerie', () => jeu.aller('ville'), 'infirmerie'));
   const contenu = el('div', { class: 'contenu' });
 
   const blesses = joueur.gladiateurIds

@@ -53,19 +53,28 @@ def render_to(path):
 
 # ------------------------------------------------------------ materials ----
 
-def mat(name, color, metallic=0.0, rough=0.55, emit=None, emit_strength=0.0):
+def mat(name, color, metallic=0.0, rough=0.55, emit=None, emit_strength=0.0, bump=0.0):
     m = bpy.data.materials.get(name)
     if m:
         return m
     m = bpy.data.materials.new(name)
     m.use_nodes = True
-    bsdf = m.node_tree.nodes['Principled BSDF']
+    nt = m.node_tree
+    bsdf = nt.nodes['Principled BSDF']
     bsdf.inputs['Base Color'].default_value = (*color, 1.0)
     bsdf.inputs['Metallic'].default_value = metallic
     bsdf.inputs['Roughness'].default_value = rough
     if emit:
         bsdf.inputs['Emission Color'].default_value = (*emit, 1.0)
         bsdf.inputs['Emission Strength'].default_value = emit_strength
+    if bump > 0:
+        noise = nt.nodes.new('ShaderNodeTexNoise')
+        noise.inputs['Scale'].default_value = 40.0
+        noise.inputs['Detail'].default_value = 8.0
+        bmp = nt.nodes.new('ShaderNodeBump')
+        bmp.inputs['Strength'].default_value = bump
+        nt.links.new(noise.outputs['Fac'], bmp.inputs['Height'])
+        nt.links.new(bmp.outputs['Normal'], bsdf.inputs['Normal'])
     return m
 
 # ------------------------------------------------------------ primitives ----
@@ -181,12 +190,13 @@ def build_character(cls, variant=0, prefix=''):
     n = prefix + cls + str(variant)
 
     m_armor = mat(n + '_armor', P, metallic=0.85 if cls != 'roublard' and cls != 'mage' else 0.1,
-                  rough=0.35 if cls not in ('roublard', 'mage') else 0.6)
+                  rough=0.35 if cls not in ('roublard', 'mage') else 0.6,
+                  bump=0.030 if cls not in ('roublard', 'mage') else 0.08)
     m_skin = mat(n + '_skin', SKIN, rough=0.5)
-    m_steel = mat('steel', STEEL, metallic=0.9, rough=0.3)
+    m_steel = mat('steel', STEEL, metallic=0.9, rough=0.3, bump=0.022)
     m_dark = mat('dark', DARK, rough=0.5)
-    m_wood = mat('wood', WOOD, rough=0.7)
-    m_leather = mat('leather', LEATHER, rough=0.7)
+    m_wood = mat('wood', WOOD, rough=0.7, bump=0.12)
+    m_leather = mat('leather', LEATHER, rough=0.7, bump=0.10)
     m_gold = mat('gold', (0.95, 0.65, 0.16), metallic=1.0, rough=0.3)
 
     root = empty(n + '_root')
@@ -244,8 +254,12 @@ def build_character(cls, variant=0, prefix=''):
     sphere(n + '_head', neck, S3(0, 0, 0.27), S3(0.33, 0.31, 0.33), head_mat)
     closed_helm = (cls == 'colosse' and variant in (0, 1))
     if not closed_helm:
-        sphere(n + '_eyeL', neck, S3(-0.115, -0.275, 0.30), S3(0.045, 0.03, 0.055), m_dark)
-        sphere(n + '_eyeR', neck, S3(0.115, -0.275, 0.30), S3(0.045, 0.03, 0.055), m_dark)
+        m_blanc = mat('eye_white', (0.95, 0.93, 0.88), rough=0.35)
+        sphere(n + '_eyeWL', neck, S3(-0.115, -0.272, 0.30), S3(0.055, 0.032, 0.065), m_blanc)
+        sphere(n + '_eyeWR', neck, S3(0.115, -0.272, 0.30), S3(0.055, 0.032, 0.065), m_blanc)
+        sphere(n + '_eyeL', neck, S3(-0.115, -0.292, 0.30), S3(0.030, 0.020, 0.038), m_dark)
+        sphere(n + '_eyeR', neck, S3(0.115, -0.292, 0.30), S3(0.030, 0.020, 0.038), m_dark)
+        box(n + '_mouth', neck, S3(0, -0.30, 0.155), S3(0.085, 0.018, 0.016), m_dark, bevel=0.005)
         m_brow = mat(n + '_brow', (0.18, 0.10, 0.06), rough=0.8)
         box(n + '_browL', neck, S3(-0.115, -0.285, 0.385), S3(0.10, 0.04, 0.035), m_brow, rot=(0, 0, -8), bevel=0.01)
         box(n + '_browR', neck, S3(0.115, -0.285, 0.385), S3(0.10, 0.04, 0.035), m_brow, rot=(0, 0, 8), bevel=0.01)
@@ -287,6 +301,14 @@ def build_character(cls, variant=0, prefix=''):
     _weapons(rig, cls, variant, grip_l, grip_r, el_l, s, w,
              dict(armor=m_armor, steel=m_steel, dark=m_dark, gold=m_gold,
                   wood=m_wood, leather=m_leather))
+
+    # ---- détails v2 : ceinture à boucle, brassards
+    if not mage_like:
+        torus(n + '_belt', pelvis, S3(0, 0, 0.085), 0.305 * w * s, 0.042 * s, m_leather)
+        box(n + '_buckle', pelvis, S3(0, -0.305, 0.085), S3(0.09, 0.03, 0.07), m_gold, bevel=0.012)
+    m_bracer = m_leather if cls in ('roublard', 'berserker') else m_steel
+    for side, el in [('L', el_l), ('R', el_r)]:
+        cyl(n + '_bracer' + side, el, (0, 0, -0.17 * s), 0.098 * w * s, 0.11 * s, m_bracer, origin='center')
 
     return rig
 
@@ -646,9 +668,9 @@ def sprite_stage(ortho_scale, target_z, elev=55.0):
         lo.rotation_euler = [radians(a) for a in rot]
         return lo
 
-    sun('key', 2.6, (1.0, 0.96, 0.88), (50, 0, -35), 0.12)        # avant-gauche haut
+    sun('key', 3.0, (1.0, 0.96, 0.88), (50, 0, -35), 0.10)        # avant-gauche haut
     sun('fill', 0.9, (0.55, 0.70, 1.0), (62, 0, 40), 0.8)          # avant-droit froid
-    sun('rim', 3.5, (1.0, 0.5, 0.2), (-48, 0, 20), 0.35)           # arriere chaud (torches)
+    sun('rim', 4.4, (1.0, 0.5, 0.2), (-48, 0, 20), 0.3)           # arriere chaud (torches)
 
     # petit disque catcher : alpha strictement nul au-dela
     bpy.ops.mesh.primitive_circle_add(vertices=40, radius=ortho_scale * 0.62,

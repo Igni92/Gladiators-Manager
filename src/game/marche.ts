@@ -11,7 +11,7 @@ import { RNG } from '../core/rng';
 import type { AnnonceMarche, GameState, Gladiator, OffreRecue } from '../core/types';
 import { BALANCE } from '../data/balance';
 import { ajouterFinance } from './economie';
-import { genGladiateur, noteGlobale, ovrCibleDivision, salaireAttendu, salaireExige, valeurTransfert } from './generation';
+import { BORNES_TIER, genGladiateur, noteGlobale, salaireAttendu, salaireExige, tirerTier, valeurTransfert } from './generation';
 import { equipeJoueur } from './competitions';
 
 /** Regénère le vivier d'annonces à l'ouverture d'une fenêtre. */
@@ -42,10 +42,12 @@ export function regenererMarche(etat: GameState, rng: RNG): void {
     });
   }
 
-  // 2) agents libres : niveau centré sur la division du joueur (avec quelques pépites)
+  // 2) agents libres : palier tiré selon les chances d'apparition (affichées à la taverne),
+  // la réputation de l'écurie attire les hauts paliers
   while (etat.marche.length < BALANCE.TAILLE_MARCHE) {
-    let cible = ovrCibleDivision(rng, joueur.division);
-    if (rng.chance(0.15)) cible = Math.min(94, cible + rng.int(8, 16)); // pépite chère
+    const tier = tirerTier(rng, joueur.reputation);
+    const bornes = BORNES_TIER[tier];
+    const cible = rng.int(bornes[0], bornes[1]);
     const g = genGladiateur(rng, etat.prochainId++, cible, -1);
     etat.gladiateurs[g.id] = g;
     etat.marche.push({

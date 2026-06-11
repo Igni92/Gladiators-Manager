@@ -1,6 +1,9 @@
 /** Taverne : rumeurs du marché, ambiance, tournée générale pour le moral. */
 
 import { equipeJoueur, marcheOuvert } from '../../game/competitions';
+import { probasApparition } from '../../game/generation';
+import { TIER_COULEURS } from '../../data/balance';
+import type { Tier } from '../../core/types';
 import { ajouterFinance, clamp } from '../../game/economie';
 import { enTete } from '../composants';
 import { el, fmtPO, toast } from '../dom';
@@ -16,7 +19,7 @@ export function rendreTaverne(): void {
   const joueur = equipeJoueur(etat);
 
   const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-taverne' });
-  ecran.append(enTete('Taverne du Glaive Rouillé'));
+  ecran.append(enTete('Taverne du Glaive Rouillé', () => jeu.aller('ville'), 'taverne'));
   const contenu = el('div', { class: 'contenu' });
 
   // rumeurs
@@ -60,6 +63,24 @@ export function rendreTaverne(): void {
       }, dejaPayee ? '🍻 Déjà fait cette semaine' : '🍻 Tournée ! (+4 moral)'),
     ),
   );
+
+  // chances d'apparition par palier (gacha transparent)
+  const probas = probasApparition(joueur.reputation);
+  const panneauTaux = el('div', { class: 'panneau' },
+    el('h2', null, '🎲 Chances d’apparition au marché'),
+    el('div', { class: 'texte-faible', style: 'font-size:12px;margin-bottom:8px;' },
+      `Probabilité de chaque palier parmi les agents libres de la prochaine fenêtre. Votre réputation (${Math.round(joueur.reputation)}) attire les grands noms.`));
+  for (const t of ['SS', 'S', 'A', 'B', 'C', 'D'] as Tier[]) {
+    const pct = probas[t];
+    const c = TIER_COULEURS[t];
+    panneauTaux.append(
+      el('div', { class: 'taux-ligne', 'data-testid': `taux-${t}` },
+        el('span', { class: 'taux-palier', style: `background:${c.fond};color:${c.texte};` }, t),
+        el('div', { class: 'taux-barre' }, el('div', { class: 'taux-rempli', style: `width:${Math.min(100, pct * 2.2)}%;` })),
+        el('span', { class: 'taux-pct' }, `${pct < 1 ? pct.toFixed(1) : Math.round(pct)} %`)),
+    );
+  }
+  contenu.append(panneauTaux);
 
   contenu.append(
     el('div', { class: 'panneau texte-faible' },

@@ -114,13 +114,14 @@ export const BALANCE = {
   /** durée max d'un combat en secondes (au-delà : décision aux PV restants) */
   COMBAT_DUREE_MAX: 95,
   TICK: 1 / 30,
-  /** PV = PV_BASE + force × PV_FORCE + ovr × PV_OVR (× modificateur de classe) */
+  /** PV = PV_BASE + force × PV_FORCE + ovr × PV_OVR (× modificateur de classe).
+   * PV surtout liés à la note globale : empiler la Force ne fait pas un tank. */
   PV_BASE: 110,
-  PV_FORCE: 2.1,
-  PV_OVR: 0.9,
+  PV_FORCE: 0.5,
+  PV_OVR: 2.1,
   /** dégâts mêlée = DEG_BASE + force × DEG_FORCE (× arme de classe, × état) */
-  DEG_BASE: 7,
-  DEG_FORCE: 0.32,
+  DEG_BASE: 12,
+  DEG_FORCE: 0.2,
   /** vitesse de déplacement (unités/s) = DEPL_BASE + vitesse × DEPL_PENTE */
   DEPL_BASE: 52,
   DEPL_PENTE: 1.05,
@@ -128,29 +129,64 @@ export const BALANCE = {
   ATT_CD_BASE: 2.0,
   ATT_CD_PENTE: 0.009,
   /** esquive : P = esquive × 0.0045 (cap 0.38) ; fourberie : crit = fourberie × 0.0035 (+ dos ×1.6), dégâts crit ×1.8 */
-  ESQ_PENTE: 0.0045,
-  ESQ_CAP: 0.38,
-  CRIT_PENTE: 0.0035,
-  CRIT_MULT: 1.8,
+  ESQ_PENTE: 0.0075,
+  ESQ_CAP: 0.55,
+  CRIT_PENTE: 0.0045,
+  CRIT_MULT: 1.9,
   /** intelligence : réduit le temps de décision et donne un bonus de garde (réduction de dégâts subis) */
-  GARDE_PENTE: 0.0022,
+  GARDE_PENTE: 0.0038,
   /** magie : seuil pour être lanceur de sorts */
   SEUIL_MAGE: 60,
   /** boule de feu : dégâts = 18 + magie × 0.5, cd 4,5 s, portée 320 */
-  FEU_BASE: 18,
-  FEU_MAGIE: 0.5,
-  FEU_CD: 4.5,
+  FEU_BASE: 16,
+  FEU_MAGIE: 0.45,
+  FEU_CD: 5.5,
   /** nova de zone : dégâts = 14 + magie × 0.34, rayon 95, cd 10 s */
-  NOVA_BASE: 14,
-  NOVA_MAGIE: 0.34,
+  NOVA_BASE: 12,
+  NOVA_MAGIE: 0.27,
   NOVA_CD: 10,
   /** soin : rend 16 + magie × 0.42 PV à l'allié le plus blessé, cd 9 s */
-  SOIN_BASE: 16,
-  SOIN_MAGIE: 0.42,
+  SOIN_BASE: 12,
+  SOIN_MAGIE: 0.32,
   SOIN_CD: 9,
   /** consignes : agressif = dégâts ×1.15 / esquive-garde ×0.85 ; défensif = inverse */
-  CONSIGNE_BONUS: 1.15,
-  CONSIGNE_MALUS: 0.85,
+  CONSIGNE_BONUS: 1.12,
+  CONSIGNE_MALUS: 0.88,
+
+  /** ---------- ATTAQUE À DISTANCE (Fourberie) ---------- */
+  /** dégâts distance = DIST_BASE + fourberie × DIST_FOURBERIE (roublard : couteaux, lancier : javelots) */
+  DIST_BASE: 7,
+  DIST_FOURBERIE: 0.42,
+  /** portée de tir (lancier +30) et cadence (× le délai mêlée) */
+  DIST_PORTEE: 240,
+  DIST_CD_MULT: 1.35,
+  /** l'esquive reste presque aussi efficace contre les projectiles (c'est le BLOCAGE qui les contre) */
+  DIST_ESQUIVE_MULT: 0.85,
+
+  /** ---------- BLOCAGE (Intelligence) ---------- */
+  /** P(bloc) mêlée = intelligence × BLOC_PENTE (cap BLOC_CAP) ; × BLOC_BOUCLIER pour bretteur/lancier/colosse */
+  BLOC_PENTE: 0.0013,
+  BLOC_CAP: 0.45,
+  BLOC_BOUCLIER: 2.2,
+  /** les attaques à DISTANCE sont bien plus faciles à bloquer */
+  BLOC_DISTANCE_MULT: 2.6,
+  /** dégâts restants après blocage */
+  BLOC_REDUCTION: 0.25,
+
+  /** ---------- TALENTS CACHÉS ---------- */
+  T_FUMIGENE_DUREE: 0.9,
+  T_RAGE_DEG: 1.2,
+  T_RAGE_VIT: 1.1,
+  T_SEUIL_PV: 0.35,
+  T_CARAPACE_GARDE: 0.2,
+  T_VAMPIRISME: 0.16,
+  T_EXECUTEUR_SEUIL: 0.3,
+  T_EXECUTEUR_DEG: 1.3,
+  T_PREMIERSANG_DUREE: 5,
+  T_PREMIERSANG_DEG: 1.4,
+  T_LONGUEPORTEE_PORTEE: 1.3,
+  T_LONGUEPORTEE_DEG: 1.15,
+  T_SECONDEVIE_INVINCIBLE: 1.0,
 
   /** ---------- MARCHÉ ---------- */
   /** taille du vivier d'annonces pendant une fenêtre de transfert */

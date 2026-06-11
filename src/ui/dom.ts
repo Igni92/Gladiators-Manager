@@ -26,6 +26,17 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** Icône 3D pré-rendue (assets/icons/*.png). */
+export function icone(nom: string, taille = 18): HTMLImageElement {
+  const img = el('img', {
+    class: 'ico',
+    src: `${import.meta.env.BASE_URL}assets/icons/${nom}.png`,
+    alt: nom,
+    style: `width:${taille}px;height:${taille}px;`,
+  }) as HTMLImageElement;
+  return img;
+}
+
 /** 12 345 → « 12 345 PO » */
 export function fmtPO(n: number): string {
   return `${Math.round(n).toLocaleString('fr-FR')} PO`;

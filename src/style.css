@@ -277,3 +277,46 @@ table.classement tr.joueur td.eq { color: var(--or-clair); }
 }
 .chip.actif { background: linear-gradient(180deg, #e3b341, #b07d10); color: #2b1c02; border-color: var(--or-clair); }
 .spark { width: 100%; height: 64px; display: block; }
+
+
+/* ---------- v2 : icônes, talents, placement, tuto ---------- */
+.ico { vertical-align: -3px; object-fit: contain; }
+.entete-po { display: inline-flex; align-items: center; gap: 5px; }
+.btn-aide {
+  width: 34px; height: 34px; border-radius: 50%; font-size: 18px; font-weight: 900;
+  background: var(--panneau-clair); border: 1.5px solid var(--or); color: var(--or-clair); flex-shrink: 0;
+}
+.cg-talents { position: absolute; top: 64px; left: 7px; display: flex; flex-direction: column; gap: 2px; z-index: 2; }
+.cg-talent {
+  width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); border: 1.5px solid rgba(255,255,255,.4);
+}
+.cg-talent.inconnu { color: #ffd54a; font-weight: 900; font-size: 15px; border-color: var(--or); }
+.fiche-talents { width: 100%; }
+
+.tuto-points { display: flex; gap: 7px; justify-content: center; margin-top: 12px; }
+.tuto-point { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.22); }
+.tuto-point.actif { background: var(--or-clair); }
+
+/* grille de placement */
+.placement-wrap { position: relative; width: 100%; }
+.placement-canvas { width: 100%; display: block; border-radius: 14px; }
+.placement-banc { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.mini-glad {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 7px 9px; border-radius: 12px; border: 2px solid var(--bord);
+  background: var(--panneau); font-size: 11px; font-weight: 700; min-width: 86px;
+}
+.mini-glad img { width: 44px; height: 44px; object-fit: contain; }
+.mini-glad.selectionne { border-color: var(--or-clair); background: var(--panneau-clair); box-shadow: 0 0 14px rgba(240,199,94,.35); }
+.mini-glad.place { opacity: .55; }
+
+/* tableau des chances (taverne) */
+.taux-ligne { display: flex; align-items: center; gap: 10px; padding: 6px 4px; }
+.taux-palier {
+  width: 38px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 13px;
+}
+.taux-barre { flex: 1; height: 12px; background: rgba(0,0,0,.45); border-radius: 6px; overflow: hidden; }
+.taux-rempli { height: 100%; background: linear-gradient(90deg, var(--or), var(--or-clair)); }
+.taux-pct { width: 58px; text-align: right; font-weight: 800; font-size: 13px; }

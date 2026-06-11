@@ -15,7 +15,7 @@ export function rendreBanque(): void {
   const joueur = equipeJoueur(etat);
 
   const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-banque' });
-  ecran.append(enTete('Banque'));
+  ecran.append(enTete('Banque', () => jeu.aller('ville'), 'banque'));
   const contenu = el('div', { class: 'contenu' });
 
   const masse = masseSalariale(etat, joueur);

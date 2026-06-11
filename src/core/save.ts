@@ -2,6 +2,10 @@
 
 import type { GameState } from './types';
 import { VERSION_SAVE } from '../game/etat';
+import { RNG } from './rng';
+import { tirerTalents } from '../data/talents';
+import { noteGlobale } from '../game/generation';
+import { tierDe } from '../data/balance';
 
 const CLE = 'gladiators_manager_save_v1';
 
@@ -19,10 +23,28 @@ export function chargerSauvegarde(): GameState | null {
     if (!brut) return null;
     const etat = JSON.parse(brut) as GameState;
     if (typeof etat.version !== 'number' || etat.version > VERSION_SAVE) return null;
+    migrer(etat);
     return etat;
   } catch {
     return null;
   }
+}
+
+/** Migration v1 → v2 : talents cachés, placements, nouveaux champs. */
+function migrer(etat: GameState): void {
+  if (etat.version >= VERSION_SAVE) return;
+  const rng = new RNG((etat.rngState ?? 1) >>> 0);
+  if (!etat.placements) etat.placements = {};
+  for (const idStr of Object.keys(etat.gladiateurs)) {
+    const g = etat.gladiateurs[Number(idStr)];
+    if (!g) continue;
+    if (!g.talents) {
+      g.talents = tirerTalents(rng, tierDe(noteGlobale(g.traits, g.classe)), g.classe);
+      g.talentsConnus = [];
+    }
+  }
+  etat.rngState = Math.floor(rng.next() * 4294967296) >>> 0;
+  etat.version = VERSION_SAVE;
 }
 
 export function effacerSauvegarde(): void {

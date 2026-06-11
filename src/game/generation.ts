@@ -3,6 +3,7 @@
 import { RNG } from '../core/rng';
 import type { ClassId, Gladiator, Personnalite, Tier, TraitId, Traits } from '../core/types';
 import { BALANCE, tierDe } from '../data/balance';
+import { tirerTalents } from '../data/talents';
 import { CLASSES, EPITHETES, PRENOMS } from '../data/noms';
 
 /** Pondération des traits par classe : [principal ×3, secondaires ×2, le reste ×1]. */
@@ -141,7 +142,50 @@ export function genGladiateur(
     salaire: Math.max(5, Math.round(salaireAttendu(ovr) * BALANCE.exigenceSalaire[personnalite])),
     equipeId,
     stats: { combats: 0, victoires: 0, elims: 0, degats: 0 },
+    talents: tirerTalents(rng, tierDe(ovr), classe),
+    talentsConnus: [],
   };
+}
+
+/** Bornes de note globale par palier (pour le tirage du marché). */
+export const BORNES_TIER: Record<Tier, [number, number]> = {
+  D: [42, 54],
+  C: [55, 64],
+  B: [65, 74],
+  A: [75, 84],
+  S: [85, 92],
+  SS: [93, 97],
+};
+
+/**
+ * Chances d'apparition des agents libres au marché, par palier.
+ * La réputation de l'écurie attire les bons profils — affiché à la taverne.
+ */
+export function probasApparition(reputation: number): Record<Tier, number> {
+  const r = Math.max(0, Math.min(100, reputation));
+  const brut: Record<Tier, number> = {
+    D: Math.max(4, 38 - r * 0.30),
+    C: Math.max(10, 40 - r * 0.15),
+    B: 16 + r * 0.10,
+    A: 5 + r * 0.18,
+    S: 0.8 + r * 0.06,
+    SS: 0.2 + r * 0.012,
+  };
+  const total = Object.values(brut).reduce((x, y) => x + y, 0);
+  const sortie = {} as Record<Tier, number>;
+  for (const t of Object.keys(brut) as Tier[]) sortie[t] = (brut[t] / total) * 100;
+  return sortie;
+}
+
+/** Tire un palier selon les probabilités d'apparition. */
+export function tirerTier(rng: RNG, reputation: number): Tier {
+  const probas = probasApparition(reputation);
+  let r = rng.next() * 100;
+  for (const t of ['D', 'C', 'B', 'A', 'S', 'SS'] as Tier[]) {
+    r -= probas[t];
+    if (r <= 0) return t;
+  }
+  return 'D';
 }
 
 /** Cible de note globale typique pour une division (0=D1, 1=D2, 2=D3). */

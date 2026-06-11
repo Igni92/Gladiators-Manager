@@ -21,7 +21,7 @@ export function rendreMarche(params: ParamsEcran = {}): void {
 
   const ouvert = marcheOuvert(etat.semaine);
   const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-marche' });
-  ecran.append(enTete('Marché aux gladiateurs'));
+  ecran.append(enTete('Marché aux gladiateurs', () => jeu.aller('ville'), 'marche'));
 
   const barre = el('div', { class: 'onglets' });
   barre.append(

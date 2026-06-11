@@ -126,9 +126,14 @@ def build_marche(M):
         for k in range(5):
             m = m_toile if k % 2 == 0 else M['blanc']
             G.box('awn%d%d' % (i, k), st, (-0.52 + k * 0.26, 0, 1.18), (0.27, 1.15, 0.04), m, rot=(8, 0, 0))
-        # marchandises : casques et armes
+        # marchandises : casques, armes, fruits colorés
         G.sphere('helm%d' % i, st, (-0.3, 0.1, 0.55), (0.14, 0.13, 0.12), M['fer'])
         G.box('crate%d' % i, st, (0.35, -0.1, 0.55), (0.25, 0.25, 0.2), M['bois_clair'])
+        m_fruit1 = G.mat('fruit_r', (0.7, 0.15, 0.1), rough=0.5)
+        m_fruit2 = G.mat('fruit_o', (0.85, 0.5, 0.1), rough=0.5)
+        for fi in range(5):
+            G.sphere('fruit%d_%d' % (i, fi), st, (0.0 + (fi % 3) * 0.12 - 0.1, 0.25 - (fi // 3) * 0.12, 0.52),
+                     (0.05, 0.05, 0.05), m_fruit1 if fi % 2 else m_fruit2, seg=10, rings=8)
     # cage doree (gladiateurs a vendre…)
     cage = G.empty('cage', root, (0, 0.95, 0))
     for k in range(8):
@@ -161,6 +166,11 @@ def build_caserne(M):
         G.cyl('dummy%d' % k, root, (x, y, 0.75), 0.06, 0.75, M['bois'], origin='top')
         G.sphere('dhead%d' % k, root, (x, y, 0.85), (0.12, 0.12, 0.14), M['toile_creme'])
         G.box('darms%d' % k, root, (x, y, 0.6), (0.6, 0.08, 0.08), M['bois_clair'])
+    # boucliers décoratifs sur la façade
+    for bi, bx in enumerate((-1.1, -0.3)):
+        G.cyl('decor_bouclier%d' % bi, root, (bx, -0.76, 0.75), 0.18, 0.05,
+              G.mat('bouclier_mur', (0.55, 0.12, 0.1), metallic=0.3, rough=0.5), rot=(90, 0, 0), origin='center')
+        G.sphere('decor_umbo%d' % bi, root, (bx, -0.79, 0.75), (0.05, 0.03, 0.05), M['or_'])
     # ratelier d'armes
     G.box('rack', root, (0.45, -0.45, 0.5), (0.5, 0.08, 0.55), M['bois'])
     for k in range(3):
@@ -286,3 +296,70 @@ def build_statue(M):
             ob.data.materials.clear()
             ob.data.materials.append(m_st)
     return root, 3.4, 1.1
+
+
+def build_puits(M):
+    root = G.empty('puits_root')
+    G.cyl('margelle', root, (0, 0, 0.22), 0.55, 0.45, M['pierre'], origin='center')
+    G.cyl('interieur', root, (0, 0, 0.4), 0.42, 0.1, G.mat('eau_puits', (0.05, 0.12, 0.18), rough=0.2), origin='center')
+    for sx in (-0.5, 0.5):
+        G.cyl('poteau%s' % sx, root, (sx, 0, 0.95), 0.05, 1.1, M['bois'], origin='center')
+    gable_roof('toit', root, (0, 0, 1.55), 1.5, 1.1, 0.4, M['tuile'])
+    G.cyl('axe', root, (0, 0, 1.15), 0.04, 1.0, M['bois'], rot=(0, 90, 0), origin='center')
+    G.cyl('seau', root, (0, 0, 0.62), 0.13, 0.18, M['bois_clair'], origin='center')
+    return root, 2.8, 0.8
+
+
+def build_caisses(M):
+    root = G.empty('caisses_root')
+    G.box('c1', root, (-0.3, 0, 0.3), (0.6, 0.6, 0.6), M['bois_clair'], bevel=0.03)
+    G.box('c2', root, (0.45, -0.15, 0.25), (0.5, 0.5, 0.5), M['bois'], bevel=0.03)
+    G.box('c3', root, (-0.1, -0.05, 0.85), (0.5, 0.5, 0.5), M['bois_clair'], bevel=0.03, rot=(0, 0, 18))
+    G.cyl('tonneau', root, (0.55, 0.5, 0.35), 0.28, 0.7, M['bois'], origin='center')
+    G.torus('cercle1', root, (0.55, 0.5, 0.18), 0.285, 0.025, M['fer'])
+    G.torus('cercle2', root, (0.55, 0.5, 0.52), 0.285, 0.025, M['fer'])
+    m_sac = G.mat('sac_toile', (0.62, 0.52, 0.32), rough=0.9)
+    G.sphere('sac1', root, (-0.7, -0.5, 0.25), (0.3, 0.25, 0.3), m_sac)
+    G.sphere('sac2', root, (-0.35, -0.62, 0.2), (0.25, 0.22, 0.22), m_sac)
+    return root, 2.6, 0.5
+
+
+def build_charrette(M):
+    root = G.empty('charrette_root')
+    G.box('plateau', root, (0, 0, 0.55), (1.5, 0.85, 0.12), M['bois_clair'])
+    for sy in (-0.4, 0.4):
+        G.box('ridelle%s' % sy, root, (0, sy, 0.75), (1.5, 0.06, 0.3), M['bois'])
+    for sx in (-0.55, 0.55):
+        bpy.ops.mesh.primitive_cylinder_add(vertices=18, radius=0.38, depth=0.1)
+        roue = bpy.context.active_object
+        roue.parent = root
+        roue.location = (sx, -0.5, 0.38)
+        roue.rotation_euler = (radians(90), 0, 0)
+        roue.data.materials.append(M['bois'])
+        G.sphere('moyeu%s' % sx, root, (sx, -0.55, 0.38), (0.08, 0.05, 0.08), M['fer'])
+    G.cyl('brancard', root, (0.95, 0.2, 0.5), 0.05, 1.0, M['bois'], rot=(0, 70, 15), origin='center')
+    m_foin = G.mat('foin', (0.78, 0.65, 0.3), rough=0.95)
+    G.sphere('foin', root, (0, 0, 0.85), (0.65, 0.35, 0.3), m_foin)
+    return root, 2.9, 0.6
+
+
+def build_lampe(M):
+    root = G.empty('lampe_root')
+    G.cyl('socle', root, (0, 0, 0.08), 0.18, 0.16, M['pierre'], origin='center')
+    G.cyl('poteau', root, (0, 0, 0.85), 0.05, 1.5, M['fer'], origin='center')
+    G.cyl('bras', root, (0.2, 0, 1.62), 0.03, 0.45, M['fer'], rot=(0, 90, 0), origin='center')
+    G.box('cage', root, (0.42, 0, 1.45), (0.2, 0.2, 0.3), M['fer'], bevel=0.02)
+    G.sphere('flamme', root, (0.42, 0, 1.45), (0.08, 0.08, 0.11), M['lanterne'])
+    G.cone('chapeau', root, (0.42, 0, 1.68), 0.16, 0.02, 0.15, M['fer'])
+    return root, 2.6, 0.9
+
+
+def build_buisson(M):
+    root = G.empty('buisson_root')
+    G.sphere('b1', root, (0, 0, 0.35), (0.55, 0.5, 0.4), M['feuillage'])
+    G.sphere('b2', root, (0.4, 0.15, 0.28), (0.35, 0.32, 0.28), M['feuillage_olive'])
+    G.sphere('b3', root, (-0.35, -0.1, 0.25), (0.3, 0.28, 0.24), M['feuillage'])
+    m_fl = G.mat('fleur_buisson', (0.8, 0.3, 0.4), rough=0.6)
+    for i, (x, y, z) in enumerate([(0.1, -0.35, 0.55), (-0.3, -0.25, 0.45), (0.45, -0.2, 0.42), (0.0, -0.45, 0.3)]):
+        G.sphere('fl%d' % i, root, (x, y, z), (0.05, 0.05, 0.05), m_fl, seg=8, rings=6)
+    return root, 1.8, 0.4

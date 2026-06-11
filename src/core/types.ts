@@ -8,6 +8,19 @@ export type TraitId = 'force' | 'vitesse' | 'intelligence' | 'fourberie' | 'esqu
 
 export type Personnalite = 'fidele' | 'cupide' | 'fier' | 'jovial' | 'anxieux';
 
+/** Talents cachés : se révèlent quand ils se déclenchent dans VOS matchs. */
+export type TalentId =
+  | 'fumigene'      // après une esquive : invincible 0,9 s
+  | 'dash'          // après une esquive : se téléporte dans le dos de l'attaquant
+  | 'riposte'       // après un blocage : contre-attaque immédiate
+  | 'rage'          // sous 35 % PV : dégâts +20 %, vitesse +10 %
+  | 'carapace'      // sous 35 % PV : garde renforcée
+  | 'vampirisme'    // ses coups physiques rendent 16 % des dégâts en PV
+  | 'executeur'     // +30 % de dégâts sur les cibles sous 30 % PV
+  | 'premiersang'   // +40 % de dégâts pendant les 5 premières secondes
+  | 'longueportee'  // portée +30 % et dégâts à distance +15 %
+  | 'secondevie';   // survit au premier coup fatal (1 PV, invincible 1 s)
+
 export interface Traits {
   force: number;
   vitesse: number;
@@ -54,6 +67,10 @@ export interface Gladiator {
   salaire: number;
   equipeId: number;
   stats: StatsCarriere;
+  /** talents cachés (révélés au fil des combats) */
+  talents: TalentId[];
+  /** talents déjà découverts par le manager */
+  talentsConnus: TalentId[];
 }
 
 export interface Team {
@@ -189,6 +206,8 @@ export interface GameState {
   matchJoue: boolean;
   /** historique de trésorerie par semaine (pour le graphe de la banque) */
   historiqueTresorerie: number[];
+  /** dernier placement utilisé (slots 0-8 par gladiateur) */
+  placements: { [gladiateurId: number]: number };
   /** réputation requise déjà annoncée ? petits flags d'UX */
   flags: { [k: string]: boolean };
   gameOver: boolean;

@@ -1,6 +1,6 @@
 /** Écran match : sélection d'équipe → combat 3v3 en direct (consignes) → résultat. */
 
-import { creerCombat, type Consigne, type ResultatCombat } from '../../game/combat';
+import { creerCombat, placementAuto, posDepuisSlot, type Consigne, type ResultatCombat } from '../../game/combat';
 import { equipeJoueur, matchDuJoueur, nomEquipe } from '../../game/competitions';
 import { multiplicateurCondition, forceEquipe } from '../../game/economie';
 import { noteGlobale } from '../../game/generation';
@@ -8,8 +8,9 @@ import { composerEquipeIA } from '../../game/ia';
 import { adversaireAmical, enregistrerMatchJoueur, rngDe, sauverRng } from '../../game/moteur';
 import type { CompetitionId, Gladiator, Team } from '../../core/types';
 import { CombatRender } from '../../render/combatRender';
-import { carteGladiateur, enTete } from '../composants';
+import { carteGladiateur, enTete, ICONES_CLASSES } from '../composants';
 import { el, fmtPO, toast } from '../dom';
+import { assets } from '../../render/assets';
 import { jeu, type ParamsEcran } from '../jeu';
 
 let rendu: CombatRender | null = null;
@@ -71,7 +72,7 @@ function rendreSelection(adversaire: Team, competition: CompetitionId): void {
   }
 
   const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-selection' });
-  ecran.append(enTete(`${NOMS_COMPET[competition]}`, () => jeu.aller('ville')));
+  ecran.append(enTete(`${NOMS_COMPET[competition]}`, () => jeu.aller('ville'), 'match'));
 
   const contenu = el('div', { class: 'contenu' });
   contenu.append(
@@ -124,10 +125,10 @@ function rendreSelection(adversaire: Team, competition: CompetitionId): void {
       onclick: () => {
         const titulaires = selection.slice(0, 3);
         if (titulaires.length === 0) return;
-        lancerCombat(adversaire, competition, titulaires, selection.slice(3, 5));
+        rendrePlacement(adversaire, competition, titulaires, selection.slice(3, 5));
       },
     },
-    '🏟️ Entrer dans l’arène',
+    '🏟️ Placer mes gladiateurs',
   );
 
   if (dispos.length === 0) {
@@ -140,9 +141,182 @@ function rendreSelection(adversaire: Team, competition: CompetitionId): void {
   majTitre();
 }
 
+/* ------------------------------------------------- placement (AFK style) ---- */
+
+function rendrePlacement(adversaire: Team, competition: CompetitionId, titulaires: number[], remplacants: number[]): void {
+  const etat = jeu.etat!;
+  const racine = jeu.racine();
+  racine.innerHTML = '';
+
+  const mesGlads = titulaires.map((id) => etat.gladiateurs[id]).filter((g): g is Gladiator => !!g);
+  const advGlads = composerEquipeIA(etat, adversaire);
+  const slotsAdv = placementAuto(advGlads);
+
+  // placement initial : mémoire de la partie, sinon auto par classe
+  const auto = placementAuto(mesGlads);
+  const slots: number[] = mesGlads.map((g, i) => {
+    const memo = etat.placements[g.id];
+    return memo !== undefined && memo >= 0 && memo < 9 ? memo : (auto[i] ?? 4);
+  });
+  // doublons éventuels de la mémoire → on répare
+  for (let i = 0; i < slots.length; i++) {
+    while (slots.indexOf(slots[i] as number) !== i) slots[i] = ((slots[i] as number) + 1) % 9;
+  }
+
+  let selectionne = 0; // index du gladiateur en cours de placement
+
+  const ecran = el('div', { class: 'ecran', 'data-testid': 'ecran-placement' });
+  ecran.append(enTete('Placement', () => rendreSelection(adversaire, competition), 'match'));
+  const contenu = el('div', { class: 'contenu' });
+  contenu.append(
+    el('div', { class: 'panneau centre', style: 'padding:8px;' },
+      el('div', { style: 'font-weight:800;' }, 'Placez vos gladiateurs sur la grille'),
+      el('div', { class: 'texte-faible', style: 'font-size:12px;' }, 'Cogneurs devant · tireurs au centre · mages derrière. Touchez un emplacement.')),
+  );
+
+  const wrap = el('div', { class: 'placement-wrap' });
+  const canvas = el('canvas', { class: 'placement-canvas', 'data-testid': 'canvas-placement' }) as HTMLCanvasElement;
+  wrap.append(canvas);
+
+  const banc = el('div', { class: 'placement-banc' });
+  const majBanc = () => {
+    banc.innerHTML = '';
+    mesGlads.forEach((g, i) => {
+      const chip = el('div', {
+        class: `mini-glad ${i === selectionne ? 'selectionne' : ''}`,
+        'data-testid': `place-glad-${i}`,
+        onclick: () => {
+          selectionne = i;
+          majBanc();
+          dessiner();
+        },
+      },
+        el('img', { src: assets.portraitUrl(g.classe, g.variante) }),
+        el('div', null, `${ICONES_CLASSES[g.classe] ?? ''} ${g.nom.split(' ')[0] ?? ''}`),
+      );
+      banc.append(chip);
+    });
+  };
+
+  const dessiner = () => {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth || 400;
+    canvas.width = w * dpr;
+    canvas.height = w * dpr;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const ech = (w * dpr) / 1000;
+    ctx.save();
+    ctx.scale(ech, ech);
+    const bg = assets.image('arena_bg');
+    if (bg) ctx.drawImage(bg, 0, 0, 1000, 1000);
+    else {
+      ctx.fillStyle = '#3a2b18';
+      ctx.fillRect(0, 0, 1000, 1000);
+    }
+    // moitié adverse : aperçu fantôme
+    advGlads.forEach((g, i) => {
+      const p = posDepuisSlot(1, slotsAdv[i] ?? 4);
+      ctx.globalAlpha = 0.75;
+      const ok = assets.dessinerSprite(ctx, g.classe, 'idle', 'W', 0, p.x, p.y, 120);
+      if (!ok) {
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y - 14, 20, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    });
+    // grille de mes 9 emplacements
+    for (let slot = 0; slot < 9; slot++) {
+      const p = posDepuisSlot(0, slot);
+      const occupant = slots.indexOf(slot);
+      ctx.strokeStyle = occupant >= 0 ? 'rgba(240,199,94,0.9)' : 'rgba(255,255,255,0.45)';
+      ctx.lineWidth = occupant >= 0 ? 5 : 3;
+      ctx.setLineDash(occupant >= 0 ? [] : [8, 7]);
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y + 4, 38, 20, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // mes gladiateurs placés
+    mesGlads.forEach((g, i) => {
+      const p = posDepuisSlot(0, slots[i] ?? 4);
+      const ok = assets.dessinerSprite(ctx, g.classe, 'idle', 'E', 0, p.x, p.y, 124);
+      if (!ok) {
+        ctx.fillStyle = '#27ae60';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y - 14, 20, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (i === selectionne) {
+        ctx.strokeStyle = 'rgba(120,255,170,0.95)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y + 4, 44, 24, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    });
+    // légende des colonnes
+    ctx.font = '700 26px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText('AVANT', posDepuisSlot(0, 0).x, 92);
+    ctx.fillText('CENTRE', posDepuisSlot(0, 1).x, 92);
+    ctx.fillText('ARRIÈRE', posDepuisSlot(0, 2).x, 92);
+    ctx.restore();
+  };
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const r = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const ech = canvas.width / 1000;
+    const mx = ((e.clientX - r.left) * dpr) / ech;
+    const my = ((e.clientY - r.top) * dpr) / ech;
+    // d'abord : toucher un de mes gladiateurs le sélectionne
+    for (let i = 0; i < mesGlads.length; i++) {
+      const p = posDepuisSlot(0, slots[i] ?? 4);
+      if (Math.hypot(mx - p.x, my - (p.y - 20)) < 55) {
+        selectionne = i;
+        majBanc();
+        dessiner();
+        return;
+      }
+    }
+    // sinon : un emplacement → on y place le gladiateur sélectionné (échange si occupé)
+    for (let slot = 0; slot < 9; slot++) {
+      const p = posDepuisSlot(0, slot);
+      if (Math.hypot(mx - p.x, my - p.y) < 60) {
+        const occupant = slots.indexOf(slot);
+        if (occupant >= 0 && occupant !== selectionne) slots[occupant] = slots[selectionne] ?? 4;
+        slots[selectionne] = slot;
+        dessiner();
+        return;
+      }
+    }
+  });
+
+  contenu.append(wrap, banc, el('div', { class: 'sep' }),
+    el('button', {
+      class: 'btn principal large', 'data-testid': 'btn-lancer-combat',
+      onclick: () => {
+        mesGlads.forEach((g, i) => {
+          etat.placements[g.id] = slots[i] ?? 4;
+        });
+        jeu.sauver();
+        lancerCombat(adversaire, competition, titulaires, remplacants, slots);
+      },
+    }, '⚔️ Lancer le combat !'),
+  );
+  ecran.append(contenu);
+  racine.append(ecran);
+  majBanc();
+  requestAnimationFrame(dessiner);
+}
+
 /* --------------------------------------------------------------- combat ---- */
 
-function lancerCombat(adversaire: Team, competition: CompetitionId, titulaires: number[], remplacants: number[]): void {
+function lancerCombat(adversaire: Team, competition: CompetitionId, titulaires: number[], remplacants: number[], placement?: number[]): void {
   const etat = jeu.etat!;
   const racine = jeu.racine();
   racine.innerHTML = '';
@@ -151,7 +325,7 @@ function lancerCombat(adversaire: Team, competition: CompetitionId, titulaires: 
   const mesGlads = titulaires.map((id) => etat.gladiateurs[id]).filter((g): g is Gladiator => !!g);
   const advGlads = composerEquipeIA(etat, adversaire);
   const rng = rngDe(etat);
-  const cs = creerCombat(mesGlads, advGlads, rng.int(1, 2 ** 31));
+  const cs = creerCombat(mesGlads, advGlads, rng.int(1, 2 ** 31), placement);
   sauverRng(etat, rng);
 
   const ecran = el('div', { class: 'combat-ecran', 'data-testid': 'ecran-combat' });

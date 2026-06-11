@@ -3,8 +3,9 @@
 import { equipeJoueur, libelleSemaine, marcheOuvert, matchDuJoueur } from '../../game/competitions';
 import { finirSemaine } from '../../game/moteur';
 import { SceneVille } from '../../render/ville';
-import { el, fmtPO, modale, toasts } from '../dom';
+import { el, fmtPO, icone, modale, toasts } from '../dom';
 import { jeu, type Ecran } from '../jeu';
+import { ouvrirAide, ouvrirTuto } from '../tuto';
 
 let scene: SceneVille | null = null;
 
@@ -22,14 +23,15 @@ export function rendreVille(): void {
   const haut = el(
     'div',
     { class: 'ville-haut' },
-    el('div', { class: 'pastille', 'data-testid': 'tresorerie' }, '💰 ', fmtPO(joueur.tresorerie)),
+    el('div', { class: 'pastille', 'data-testid': 'tresorerie' }, icone('po', 16), ' ', fmtPO(joueur.tresorerie)),
     el('div', { class: 'pastille' }, `📅 S${etat.saison} · sem. ${etat.semaine}/30`),
-    el('div', { class: 'pastille' }, `⭐ ${Math.round(joueur.reputation)}`),
+    el('div', { class: 'pastille' }, icone('reputation', 16), ` ${Math.round(joueur.reputation)}`),
     el(
       'button',
       { class: 'pastille', 'data-testid': 'btn-equipe', onclick: () => jeu.aller('equipe'), style: 'margin-left:auto;' },
       `🛡️ Équipe (${joueur.gladiateurIds.length})`,
     ),
+    el('button', { class: 'pastille', 'data-testid': 'btn-tuto', onclick: () => ouvrirTuto() }, icone('aide', 16)),
   );
 
   // canvas ville
@@ -84,7 +86,12 @@ export function rendreVille(): void {
 
   if (etat.gameOver) {
     afficherGameOver();
+  } else if (!etat.flags['tutoVu']) {
+    etat.flags['tutoVu'] = true;
+    jeu.sauver();
+    ouvrirTuto();
   }
+  void ouvrirAide;
 }
 
 function avancer(): void {

@@ -30,6 +30,17 @@ const DECOR: { id: string; x: number; y: number; taille: number }[] = [
   { id: 'arbre_b', x: 80, y: 1280, taille: 125 },
   { id: 'arbre_a', x: 360, y: 620, taille: 100 },
   { id: 'arbre_b', x: 645, y: 615, taille: 105 },
+  { id: 'puits', x: 660, y: 855, taille: 120 },
+  { id: 'charrette', x: 330, y: 870, taille: 130 },
+  { id: 'caisses', x: 320, y: 530, taille: 105 },
+  { id: 'caisses', x: 905, y: 1105, taille: 100 },
+  { id: 'lampe', x: 415, y: 950, taille: 95 },
+  { id: 'lampe', x: 590, y: 950, taille: 95 },
+  { id: 'buisson', x: 200, y: 770, taille: 90 },
+  { id: 'buisson', x: 795, y: 790, taille: 92 },
+  { id: 'buisson', x: 95, y: 880, taille: 85 },
+  { id: 'arbre_a', x: 250, y: 1170, taille: 105 },
+  { id: 'arbre_b', x: 760, y: 1180, taille: 108 },
 ];
 
 export class SceneVille {
@@ -104,48 +115,33 @@ export class SceneVille {
     ctx.save();
     ctx.clearRect(0, 0, W, H);
 
-    // sol : terre/sable chaud avec vignette
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#9a7b48');
-    grad.addColorStop(0.5, '#8d6f40');
-    grad.addColorStop(1, '#7a5e34');
-    ctx.fillStyle = grad;
+    ctx.fillStyle = '#5e4a28';
     ctx.fillRect(0, 0, W, H);
 
     ctx.translate(this.dx, this.dy);
     ctx.scale(this.echelle, this.echelle);
 
-    // texture discrète : taches de sol
-    ctx.fillStyle = 'rgba(60,42,20,0.10)';
-    for (let i = 0; i < 40; i++) {
-      const sx = ((i * 263) % 1000);
-      const sy = ((i * 419) % 1500);
-      ctx.beginPath();
-      ctx.ellipse(sx, sy, 36 + (i % 4) * 12, 20 + (i % 3) * 8, i, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // chemins pavés reliant la place centrale
-    ctx.strokeStyle = '#b59a68';
-    ctx.lineCap = 'round';
-    ctx.lineWidth = 64;
-    const place = { x: 500, y: 880 };
-    for (const b of BATIMENTS_VILLE) {
-      ctx.beginPath();
-      ctx.moveTo(place.x, place.y);
-      ctx.quadraticCurveTo((place.x + b.x) / 2, (place.y + b.y) / 2 + 30, b.x, b.y + b.taille * 0.2);
-      ctx.stroke();
-    }
-    // place centrale
-    ctx.fillStyle = '#b59a68';
-    ctx.beginPath();
-    ctx.ellipse(place.x, place.y, 240, 150, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(90,66,34,0.25)';
-    for (let i = 0; i < 14; i++) {
-      ctx.beginPath();
-      ctx.ellipse(place.x - 200 + (i * 67) % 400, place.y - 90 + (i * 113) % 200, 14, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
+    // sol du village pré-rendu en 3D (chemins, herbe, place dallée)
+    const sol = assets.image('bat_sol_ville');
+    if (sol) {
+      ctx.drawImage(sol, 0, 0, 1000, 1500);
+    } else {
+      // secours : aplat + chemins dessinés
+      const grad = ctx.createLinearGradient(0, 0, 0, 1500);
+      grad.addColorStop(0, '#9a7b48');
+      grad.addColorStop(1, '#7a5e34');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1000, 1500);
+      ctx.strokeStyle = '#b59a68';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 64;
+      const place = { x: 500, y: 880 };
+      for (const b of BATIMENTS_VILLE) {
+        ctx.beginPath();
+        ctx.moveTo(place.x, place.y);
+        ctx.quadraticCurveTo((place.x + b.x) / 2, (place.y + b.y) / 2 + 30, b.x, b.y + b.taille * 0.2);
+        ctx.stroke();
+      }
     }
 
     // bâtiments + décor triés par y (peintre)
@@ -181,6 +177,34 @@ export class SceneVille {
         ctx.fillStyle = '#f0c75e';
         ctx.fillText(o.nom, o.x, ty + 3);
       }
+    }
+
+    // fumée de la cheminée de la taverne
+    const taverne = BATIMENTS_VILLE.find((b) => b.id === 'taverne');
+    if (taverne) {
+      for (let i = 0; i < 4; i++) {
+        const cyc = (this.t * 0.32 + i / 4) % 1;
+        const sx = taverne.x + 52 + Math.sin(this.t * 1.7 + i * 2.4) * 12 * cyc;
+        const sy = taverne.y - 88 - cyc * 120;
+        ctx.fillStyle = `rgba(225,220,210,${0.30 * (1 - cyc)})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 10 + cyc * 22, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // un oiseau qui traverse de temps en temps
+    const cycOiseau = (this.t * 0.05) % 1;
+    if (cycOiseau < 0.45) {
+      const ox = -60 + (cycOiseau / 0.45) * 1120;
+      const oy = 240 + Math.sin(this.t * 2.2) * 16;
+      ctx.strokeStyle = 'rgba(30,22,12,0.7)';
+      ctx.lineWidth = 4;
+      const aile = Math.sin(this.t * 9) * 8;
+      ctx.beginPath();
+      ctx.moveTo(ox - 12, oy - aile);
+      ctx.quadraticCurveTo(ox, oy + 4, ox + 12, oy - aile);
+      ctx.stroke();
     }
 
     ctx.restore();

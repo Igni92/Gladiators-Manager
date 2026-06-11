@@ -217,9 +217,190 @@ function testerCombat(): void {
   }
 }
 
+/**
+ * DÉTECTION DE MÉTA : cherche une stat dominante, une classe dominante ou une
+ * stratégie dégénérée (tout-distance, toujours-agressif, focus systématique…).
+ * Échoue si un archétype écrase tous les autres.
+ */
+function genGladiateurArchetype(rng: RNG, id: number, ovr: number, traitFort: TraitId | null, classe?: import('../../src/core/types').ClassId): Gladiator {
+  // essaie jusqu'à obtenir un gladiateur incarnant l'archétype voulu
+  for (let essai = 0; essai < 60; essai++) {
+    const g = genGladiateur(rng, id, ovr, -1, classe);
+    g.talents = [];
+    g.talentsConnus = [];
+    if (!traitFort) return g;
+    // pousse le trait au max en redistribuant depuis les autres (note globale ~constante)
+    const traits: TraitId[] = ['force', 'vitesse', 'intelligence', 'fourberie', 'esquive', 'magie'];
+    const autres = traits.filter((t) => t !== traitFort && !(t === 'magie' && g.classe !== 'mage'));
+    let budget = 0;
+    for (const t of autres) {
+      const retire = Math.round(g.traits[t] * 0.35);
+      g.traits[t] -= retire;
+      budget += retire;
+    }
+    g.traits[traitFort] = Math.min(99, g.traits[traitFort] + Math.round(budget * 0.55));
+    if (Math.abs(noteGlobale(g.traits, g.classe) - ovr) <= 6) return g;
+  }
+  return genGladiateur(rng, id, ovr, -1, classe);
+}
+
+function detecterMeta(): void {
+  console.log('\n— DÉTECTION DE MÉTA —');
+  const rng = new RNG(777);
+  const OVR = 62;
+  const N = 50;
+
+  // 1) tournoi des stats : équipes spécialisées sur UN trait, round-robin
+  const archetypes: { nom: string; trait: TraitId | null }[] = [
+    { nom: 'équilibré', trait: null },
+    { nom: 'tout-Force', trait: 'force' },
+    { nom: 'tout-Vitesse', trait: 'vitesse' },
+    { nom: 'tout-Intelligence', trait: 'intelligence' },
+    { nom: 'tout-Fourberie', trait: 'fourberie' },
+    { nom: 'tout-Esquive', trait: 'esquive' },
+  ];
+  const scores = new Map<string, number>();
+  let totalParArchetype = 0;
+  for (let i = 0; i < archetypes.length; i++) {
+    for (let j = i + 1; j < archetypes.length; j++) {
+      const A = archetypes[i]!;
+      const B = archetypes[j]!;
+      let vA = 0;
+      for (let k = 0; k < N; k++) {
+        const ga = [0, 1, 2].map((q) => genGladiateurArchetype(rng, 9000 + q, OVR, A.trait));
+        const gb = [0, 1, 2].map((q) => genGladiateurArchetype(rng, 9500 + q, OVR, B.trait));
+        const cs = creerCombat(ga, gb, rng.int(1, 2 ** 31));
+        simulerJusquAuBout(cs);
+        const res = resultatCombat(cs);
+        if (res.vainqueur === 0) vA++;
+        else if (res.vainqueur === -1) vA += 0.5;
+      }
+      scores.set(A.nom, (scores.get(A.nom) ?? 0) + vA / N);
+      scores.set(B.nom, (scores.get(B.nom) ?? 0) + 1 - vA / N);
+    }
+    totalParArchetype = archetypes.length - 1;
+  }
+  for (const a of archetypes) {
+    const tauxMoyen = Math.round(((scores.get(a.nom) ?? 0) / totalParArchetype) * 100);
+    console.log(`  archétype ${a.nom} : ${tauxMoyen} % de victoires moyennes`);
+    if (a.trait === null) {
+      // un build équilibré DOIT battre les builds caricaturaux : c'est l'anti-méta par design
+      verifier(tauxMoyen >= 60, `le build équilibré reste la valeur sûre (${tauxMoyen} %)`);
+    } else {
+      // les builds 100 % mono-stat sont volontairement sous-optimaux, mais aucun ne doit écraser (≤ 80)
+      verifier(tauxMoyen <= 80, `pas de stat à empiler aveuglément : ${a.nom} ≤ 80 % (${tauxMoyen} %)`);
+      verifier(tauxMoyen >= 15, `stat pas totalement morte : ${a.nom} ≥ 15 % (${tauxMoyen} %)`);
+    }
+  }
+
+  // 1bis) test MARGINAL : +12 dans UNE stat sur un build équilibré → doit aider (>50 %) sans dominer (<75 %)
+  console.log('  — gain marginal de +12 par stat —');
+  for (const trait of ['force', 'vitesse', 'intelligence', 'fourberie', 'esquive'] as TraitId[]) {
+    let v = 0;
+    for (let k = 0; k < N; k++) {
+      const base = [0, 1, 2].map((q) => genGladiateurArchetype(rng, 9990 + q, OVR, null));
+      const boost = base.map((g) => {
+        const copie: Gladiator = JSON.parse(JSON.stringify(g));
+        copie.traits[trait] = Math.min(99, copie.traits[trait] + 12);
+        return copie;
+      });
+      const cs = creerCombat(boost, base, rng.int(1, 2 ** 31));
+      simulerJusquAuBout(cs);
+      const res = resultatCombat(cs);
+      if (res.vainqueur === 0) v++;
+      else if (res.vainqueur === -1) v += 0.5;
+    }
+    const pct = Math.round((v / N) * 100);
+    console.log(`    +12 ${trait} : ${pct} %`);
+    verifier(pct >= 50, `+12 ${trait} aide (${pct} % ≥ 50)`);
+    verifier(pct <= 78, `+12 ${trait} ne domine pas (${pct} % ≤ 78)`);
+  }
+
+  // 2) classes : chaque équipe mono-classe contre un trio varié de référence
+  const reference = () => {
+    const cls: import('../../src/core/types').ClassId[] = ['bretteur', 'colosse', 'roublard'];
+    return cls.map((c, q) => genGladiateurArchetype(rng, 9100 + q, OVR, null, c));
+  };
+  for (const classe of ['colosse', 'bretteur', 'roublard', 'lancier', 'mage', 'berserker'] as const) {
+    let v = 0;
+    for (let k = 0; k < N; k++) {
+      const mono = [0, 1, 2].map((q) => genGladiateurArchetype(rng, 9200 + q, OVR, null, classe));
+      const cs = creerCombat(mono, reference(), rng.int(1, 2 ** 31));
+      simulerJusquAuBout(cs);
+      const res = resultatCombat(cs);
+      if (res.vainqueur === 0) v++;
+      else if (res.vainqueur === -1) v += 0.5;
+    }
+    const pct = Math.round((v / N) * 100);
+    console.log(`  trio mono-${classe} vs référence : ${pct} %`);
+    verifier(pct <= 72, `pas de classe écrasante : mono-${classe} ≤ 72 % (${pct} %)`);
+    verifier(pct >= 22, `pas de classe poubelle : mono-${classe} ≥ 22 % (${pct} %)`);
+  }
+
+  // 3) stratégies dégénérées : consigne unique contre consigne équilibrée
+  for (const consigne of ['agressif', 'defensif', 'magie'] as const) {
+    let v = 0;
+    for (let k = 0; k < N; k++) {
+      const a = [0, 1, 2].map((q) => genGladiateurArchetype(rng, 9300 + q, OVR, null));
+      const b = [0, 1, 2].map((q) => genGladiateurArchetype(rng, 9400 + q, OVR, null));
+      const cs = creerCombat(a, b, rng.int(1, 2 ** 31));
+      cs.consignes[0] = consigne;
+      simulerJusquAuBout(cs);
+      const res = resultatCombat(cs);
+      if (res.vainqueur === 0) v++;
+      else if (res.vainqueur === -1) v += 0.5;
+    }
+    const pct = Math.round((v / N) * 100);
+    console.log(`  consigne « ${consigne} » permanente vs équilibré : ${pct} %`);
+    verifier(pct <= 65, `consigne ${consigne} non dégénérée (${pct} %)`);
+  }
+
+  // 4) talents : un trio avec 2 talents chacun contre le même trio sans talents
+  {
+    let v = 0;
+    for (let k = 0; k < N; k++) {
+      const avec = [0, 1, 2].map((q) => {
+        const g = genGladiateurArchetype(rng, 9600 + q, OVR, null);
+        g.talents = q === 0 ? ['rage', 'vampirisme'] : q === 1 ? ['fumigene', 'dash'] : ['riposte', 'secondevie'];
+        return g;
+      });
+      const sans = [0, 1, 2].map((q) => genGladiateurArchetype(rng, 9700 + q, OVR, null));
+      const cs = creerCombat(avec, sans, rng.int(1, 2 ** 31));
+      simulerJusquAuBout(cs);
+      const res = resultatCombat(cs);
+      if (res.vainqueur === 0) v++;
+      else if (res.vainqueur === -1) v += 0.5;
+    }
+    const pct = Math.round((v / N) * 100);
+    console.log(`  trio bardé de talents vs trio sans talents : ${pct} %`);
+    // 6 talents synergiques contre zéro = le cas limite absolu (3 gladiateurs doublement
+    // talentueux coûtent une fortune) ; ~+4 ovr d'équivalent par talent est le but.
+    verifier(pct >= 55 && pct <= 90, `les talents comptent sans tout casser (${pct} %, attendu 55-90)`);
+  }
+
+  // 5) placement : la bonne formation (auto) contre tout-le-monde-devant
+  {
+    let v = 0;
+    for (let k = 0; k < N; k++) {
+      const cls: import('../../src/core/types').ClassId[] = ['colosse', 'lancier', 'mage'];
+      const a = cls.map((c, q) => genGladiateurArchetype(rng, 9800 + q, OVR, null, c));
+      const b = cls.map((c, q) => genGladiateurArchetype(rng, 9900 + q, OVR, null, c));
+      const cs = creerCombat(a, b, rng.int(1, 2 ** 31), undefined, [0, 3, 6]); // B : tous en première ligne
+      simulerJusquAuBout(cs);
+      const res = resultatCombat(cs);
+      if (res.vainqueur === 0) v++;
+      else if (res.vainqueur === -1) v += 0.5;
+    }
+    const pct = Math.round((v / N) * 100);
+    console.log(`  placement réfléchi vs tous-devant : ${pct} %`);
+    verifier(pct >= 50, `le placement a un impact positif (${pct} %)`);
+  }
+}
+
 console.log('=== SIMULATION D’ÉQUILIBRAGE — Gladiators Manager ===');
 
 testerCombat();
+detecterMeta();
 
 console.log('\n— Jeu NORMAL (5 saisons × 4 graines) —');
 const bilansNormaux: Bilan[] = [];

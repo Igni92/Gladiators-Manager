@@ -6,8 +6,9 @@ import { ABREV_TRAITS, NOMS_CLASSES, NOMS_PERSONNALITES } from '../data/noms';
 import { noteGlobale, palierDeGladiateur, salaireExige, valeurTransfert, TRAIT_IDS } from '../game/generation';
 import { satisfaction } from '../game/economie';
 import { assets } from '../render/assets';
-import { el, fmtPO } from './dom';
+import { el, fmtPO, icone } from './dom';
 import { jeu } from './jeu';
+import { TALENTS } from '../data/talents';
 
 export const ICONES_CLASSES: Record<string, string> = {
   colosse: '🛡️',
@@ -34,6 +35,13 @@ export function carteGladiateur(g: Gladiator, opts: { onTap?: () => void; bandea
 
   const img = el('img', { class: 'cg-portrait', src: assets.portraitUrl(g.classe, g.variante), alt: g.classe });
   const statuts = el('div', { class: 'cg-statuts' });
+  // talents : icône si découvert, « ? » s'il en reste à découvrir
+  const connus = g.talentsConnus ?? [];
+  const inconnus = (g.talents ?? []).filter((t) => !connus.includes(t));
+  const coinTalents = el('div', { class: 'cg-talents' });
+  for (const t of connus) coinTalents.append(el('span', { class: 'cg-talent', title: TALENTS[t].nom }, icone(t, 20)));
+  if (inconnus.length > 0) coinTalents.append(el('span', { class: 'cg-talent inconnu' }, '?'));
+  if (coinTalents.childElementCount > 0) carte.append(coinTalents);
   if (g.blessure) statuts.append(el('span', { class: 'badge-statut blesse' }, `🩹 ${g.blessure.semaines} sem.`));
   if (g.moral < 35) statuts.append(el('span', { class: 'badge-statut grognon' }, '😠'));
   else if (g.moral > 75) statuts.append(el('span', { class: 'badge-statut content' }, '😄'));
@@ -68,6 +76,23 @@ export function ficheGladiateur(g: Gladiator, actions: HTMLElement[] = []): HTML
   const sat = satisfaction(g);
   const satTexte = sat >= 1.05 ? '😄 très satisfait' : sat >= 0.95 ? '🙂 satisfait' : sat >= 0.8 ? '😒 mécontent' : '😠 furieux';
   const fiche = el('div', { class: 'fiche-glad' });
+  const connus = g.talentsConnus ?? [];
+  const nbInconnus = (g.talents ?? []).filter((t) => !connus.includes(t)).length;
+  const blocTalents = el('div', { class: 'fiche-talents' });
+  for (const t of connus) {
+    blocTalents.append(
+      el('div', { class: 'ligne-liste', style: 'font-size:12.5px;' },
+        icone(t, 26),
+        el('div', { style: 'flex:1;' }, el('b', null, TALENTS[t].nom, ' — '), TALENTS[t].description)),
+    );
+  }
+  if (nbInconnus > 0) {
+    blocTalents.append(
+      el('div', { class: 'ligne-liste texte-faible', style: 'font-size:12.5px;' },
+        icone('talent', 26),
+        el('div', { style: 'flex:1;' }, `${nbInconnus} talent${nbInconnus > 1 ? 's' : ''} caché${nbInconnus > 1 ? 's' : ''} — se révèle quand il se déclenche dans vos matchs.`)),
+    );
+  }
   fiche.append(
     carteGladiateur(g),
     el(
@@ -83,8 +108,11 @@ export function ficheGladiateur(g: Gladiator, actions: HTMLElement[] = []): HTML
       g.blessure ? ligne('Blessure', `${g.blessure.type} — ${g.blessure.semaines} sem.`) : null,
       ligne('Carrière', `${g.stats.combats} combats · ${g.stats.victoires} V · ${g.stats.elims} élim.`),
     ),
-    el('div', { class: 'fiche-actions' }, ...actions),
   );
+  if ((g.talents ?? []).length > 0) {
+    fiche.append(el('div', { class: 'fiche-infos' }, el('h2', { style: 'color:var(--or-clair);font-size:13px;margin-bottom:4px;' }, '✨ Talents'), blocTalents));
+  }
+  fiche.append(el('div', { class: 'fiche-actions' }, ...actions));
   return fiche;
 }
 
@@ -101,15 +129,24 @@ function ligneBarre(titre: string, valeur: number, classe = ''): HTMLElement {
   );
 }
 
-/** En-tête d'écran avec retour à la ville + trésorerie. */
-export function enTete(titre: string, retour: () => void = () => jeu.aller('ville')): HTMLElement {
+/** En-tête d'écran avec retour à la ville, aide contextuelle et trésorerie. */
+export function enTete(titre: string, retour: () => void = () => jeu.aller('ville'), aideId?: string): HTMLElement {
   const etat = jeu.etat;
   const tresorerie = etat ? (etat.equipes[etat.equipeJoueurId]?.tresorerie ?? 0) : 0;
-  return el(
+  const entete = el(
     'header',
     { class: 'entete' },
     el('button', { class: 'btn-retour', onclick: retour }, '‹'),
     el('h1', null, titre),
-    el('div', { class: 'entete-po', 'data-testid': 'tresorerie' }, fmtPO(tresorerie)),
   );
+  if (aideId) {
+    entete.append(
+      el('button', {
+        class: 'btn-aide', 'data-testid': 'btn-aide',
+        onclick: () => void import('./tuto').then((m) => m.ouvrirAide(aideId)),
+      }, '?'),
+    );
+  }
+  entete.append(el('div', { class: 'entete-po', 'data-testid': 'tresorerie' }, icone('po', 17), ' ', fmtPO(tresorerie)));
+  return entete;
 }
