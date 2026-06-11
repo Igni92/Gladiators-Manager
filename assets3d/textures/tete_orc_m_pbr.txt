@@ -1,0 +1,2 @@
+roughness=0.347
+metallic=0.000
