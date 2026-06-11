@@ -265,3 +265,5 @@ if (erreurs.length > 0) {
   process.exit(1);
 }
 console.log('\n✓ Test visuel réussi, aucune erreur JavaScript.');
+// vite preview (enfant de npx) survit parfois au kill : on sort explicitement
+process.exit(0);
