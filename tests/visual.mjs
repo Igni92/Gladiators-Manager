@@ -172,9 +172,18 @@ try {
   await tapBatiment('infirmerie');
   await page.waitForSelector('[data-testid="ecran-infirmerie"]');
   await shot('09-infirmerie');
+  await page.tap('.btn-retour');
+  await page.waitForSelector('[data-testid="ecran-ville"]');
+
+  // ----- carte du monde
+  await page.tap('[data-testid="btn-monde"]');
+  await page.waitForSelector('[data-testid="ecran-monde"]');
+  await attendre(800);
+  await shot('09b-monde');
+  await page.tap('.btn-retour');
+  await page.waitForSelector('[data-testid="ecran-ville"]');
 
   // ----- équipe (cartes FIFA) + fiche
-  await page.tap('.btn-retour');
   await page.tap('[data-testid="btn-equipe"]');
   await page.waitForSelector('[data-testid="ecran-equipe"]');
   await attendre(400);

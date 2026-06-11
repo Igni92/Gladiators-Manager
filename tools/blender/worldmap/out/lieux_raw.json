@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ville",
+    "nom": "Votre cité",
+    "x": 0.5,
+    "y": -6.6296
+  },
+  {
+    "id": "ligue_bronze",
+    "nom": "Ligue de Bronze",
+    "x": 9.757,
+    "y": 0.7778
+  },
+  {
+    "id": "ligue_argent",
+    "nom": "Ligue d'Argent",
+    "x": -7.4055,
+    "y": 1.2778
+  },
+  {
+    "id": "ligue_or",
+    "nom": "Ligue d'Or",
+    "x": 0.176,
+    "y": 4.3889
+  },
+  {
+    "id": "coupe",
+    "nom": "Coupe du Royaume",
+    "x": -1.7067,
+    "y": 2.6547
+  },
+  {
+    "id": "tournoi_international",
+    "nom": "Tournoi des Champions",
+    "x": 9.1399,
+    "y": 15.4074
+  }
+]

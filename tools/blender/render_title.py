@@ -37,15 +37,15 @@ for a_deg in (230, 310):
     T.torch('t%d' % a_deg, None, (5.2 * math.cos(a), 8.0 + 5.2 * math.sin(a), 1.3), M, h=1.0)
 
 # bretteur au centre, pose victorieuse (epee levee)
-b = G.build_character('bretteur', 0, prefix='hero_')
+b = G.build_character('bretteur', race='humain', genre='m', prefix='hero_')
 G.apply_pose(b, G.get_pose('bretteur', 'attack', 0), direction_deg=0)
 b['root'].location = (0, -1.2, 0)
 # colosse derriere a gauche
-c = G.build_character('colosse', 0, prefix='tank_')
+c = G.build_character('colosse', race='orc', genre='m', corpulence=2, prefix='tank_')
 G.apply_pose(c, G.get_pose('colosse', 'idle', 0), direction_deg=15)
 c['root'].location = (-1.95, 0.75, 0)
 # mage derriere a droite, orbe levee
-m = G.build_character('mage', 0, prefix='mage_')
+m = G.build_character('mage', race='elfe', genre='f', prefix='mage_')
 G.apply_pose(m, G.get_pose('mage', 'cast', 3), direction_deg=-12)
 for mat_ in __import__('bpy').data.materials:
     if mat_.name == 'orb':
