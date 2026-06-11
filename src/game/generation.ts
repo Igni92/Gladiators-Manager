@@ -1,10 +1,11 @@
 /** Génération procédurale des gladiateurs, notes globales, valeurs, salaires. */
 
 import { RNG } from '../core/rng';
-import type { ClassId, Gladiator, Personnalite, Tier, TraitId, Traits } from '../core/types';
+import type { ClassId, Genre, Gladiator, Personnalite, RaceId, Tier, TraitId, Traits } from '../core/types';
 import { BALANCE, tierDe } from '../data/balance';
 import { tirerTalents } from '../data/talents';
 import { CLASSES, EPITHETES, PRENOMS } from '../data/noms';
+import { RACE_IDS, RACES } from '../data/races';
 
 /** Pondération des traits par classe : [principal ×3, secondaires ×2, le reste ×1]. */
 const ARCHETYPES: Record<ClassId, { fort: TraitId[]; faible: TraitId[] }> = {
@@ -72,11 +73,22 @@ const PERSONNALITES: Personnalite[] = ['fidele', 'cupide', 'fier', 'jovial', 'an
 
 let compteurNoms = 0;
 
-export function genNom(rng: RNG): string {
+export function genNom(rng: RNG, race?: RaceId, genre?: Genre): string {
   compteurNoms++;
-  const prenom = rng.pick(PRENOMS);
+  const prenom = race && genre ? rng.pick(RACES[race].prenoms[genre]) : rng.pick(PRENOMS);
   const epithete = rng.pick(EPITHETES);
   return `${prenom} ${epithete}`;
+}
+
+/** Tirage pondéré de la race. */
+export function tirerRace(rng: RNG): RaceId {
+  const total = RACE_IDS.reduce((s, r) => s + RACES[r].poids, 0);
+  let t = rng.next() * total;
+  for (const r of RACE_IDS) {
+    t -= RACES[r].poids;
+    if (t <= 0) return r;
+  }
+  return 'humain';
 }
 
 /**
@@ -89,20 +101,26 @@ export function genGladiateur(
   ovrCible: number,
   equipeId: number,
   classeForcee?: ClassId,
+  raceForcee?: RaceId,
 ): Gladiator {
+  const race = raceForcee ?? tirerRace(rng);
+  const defRace = RACES[race];
+  const genre: Genre = rng.chance(0.5) ? 'm' : 'f';
+
   let classe: ClassId;
   if (classeForcee) classe = classeForcee;
-  else if (rng.chance(0.12)) classe = 'mage';
+  else if (rng.chance(defRace.pMage)) classe = 'mage';
   else classe = rng.pick(CLASSES.filter((c) => c !== 'mage'));
 
   const arch = ARCHETYPES[classe];
   const traits: Traits = { force: 0, vitesse: 0, intelligence: 0, fourberie: 0, esquive: 0, magie: 0 };
 
-  // Tirage initial : traits forts au-dessus de la cible, faibles en dessous.
+  // Tirage initial : traits forts au-dessus de la cible, faibles en dessous,
+  // biaisés par la race (redistribution : le calage ci-dessous re-vise l'ovr).
   for (const t of TRAIT_IDS) {
-    let centre = ovrCible;
-    if (arch.fort.includes(t)) centre = ovrCible + 9;
-    else if (arch.faible.includes(t)) centre = ovrCible - 12;
+    let centre = ovrCible + (defRace.mods[t] ?? 0);
+    if (arch.fort.includes(t)) centre += 9;
+    else if (arch.faible.includes(t)) centre -= 12;
     if (t === 'magie') centre = classe === 'mage' ? ovrCible + 11 : Math.min(centre, 25);
     traits[t] = Math.round(Math.min(99, Math.max(5, centre + rng.gauss() * 5)));
   }
@@ -121,14 +139,16 @@ export function genGladiateur(
   const personnalite = rng.pick(PERSONNALITES);
   const age = Math.max(BALANCE.AGE_MIN, Math.min(34, Math.round(24 + rng.gauss() * 4)));
   const ovr = noteGlobale(traits, classe);
-  // Les jeunes ont plus de marge de progression.
-  const marge = age <= 21 ? rng.int(8, 16) : age <= 25 ? rng.int(5, 11) : age <= 29 ? rng.int(2, 6) : rng.int(0, 2);
+  // Les jeunes ont plus de marge de progression (les humains un peu plus).
+  const marge = (age <= 21 ? rng.int(8, 16) : age <= 25 ? rng.int(5, 11) : age <= 29 ? rng.int(2, 6) : rng.int(0, 2)) + defRace.bonusPotentiel;
   const potentiel = Math.min(99, ovr + marge);
 
   return {
     id,
-    nom: genNom(rng),
+    nom: genNom(rng, race, genre),
     classe,
+    race,
+    genre,
     variante: rng.int(0, 2),
     teinte: rng.int(-30, 30),
     traits,

@@ -9,6 +9,7 @@ import { assets } from '../render/assets';
 import { el, fmtPO, icone } from './dom';
 import { jeu } from './jeu';
 import { TALENTS } from '../data/talents';
+import { ICONES_RACES, NOMS_RACES } from '../data/races';
 
 export const ICONES_CLASSES: Record<string, string> = {
   colosse: '🛡️',
@@ -30,10 +31,15 @@ export function carteGladiateur(g: Gladiator, opts: { onTap?: () => void; bandea
     'div',
     { class: 'cg-haut' },
     el('div', { class: 'cg-ovr' }, el('div', { class: 'cg-note' }, String(ovr)), el('div', { class: 'cg-palier' }, palier)),
-    el('div', { class: 'cg-classe' }, `${ICONES_CLASSES[g.classe] ?? ''}`, el('span', null, NOMS_CLASSES[g.classe])),
+    el('div', { class: 'cg-classe' }, `${ICONES_CLASSES[g.classe] ?? ''}`, el('span', null, NOMS_CLASSES[g.classe]),
+      el('span', { class: 'cg-race' }, `${ICONES_RACES[g.race ?? 'humain']} ${NOMS_RACES[g.race ?? 'humain']}`)),
   );
 
-  const img = el('img', { class: 'cg-portrait', src: assets.portraitUrl(g.classe, g.variante), alt: g.classe });
+  const img = el('img', { class: 'cg-portrait', src: assets.portraitUrlRace(g.race ?? 'humain', g.genre ?? 'm', g.classe), alt: g.classe }) as HTMLImageElement;
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = assets.portraitUrl(g.classe, g.variante);
+  };
   const statuts = el('div', { class: 'cg-statuts' });
   // talents : icône si découvert, « ? » s'il en reste à découvrir
   const connus = g.talentsConnus ?? [];
@@ -98,6 +104,7 @@ export function ficheGladiateur(g: Gladiator, actions: HTMLElement[] = []): HTML
     el(
       'div',
       { class: 'fiche-infos' },
+      ligne('Race', `${ICONES_RACES[g.race ?? 'humain']} ${NOMS_RACES[g.race ?? 'humain']}`),
       ligne('Personnalité', NOMS_PERSONNALITES[g.personnalite]),
       ligne('Potentiel', `${ovr} → ${g.potentiel}`),
       ligneBarre('Moral', g.moral),

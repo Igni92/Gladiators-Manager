@@ -31,6 +31,7 @@ export function rendreVille(): void {
       { class: 'pastille', 'data-testid': 'btn-equipe', onclick: () => jeu.aller('equipe'), style: 'margin-left:auto;' },
       `🛡️ Équipe (${joueur.gladiateurIds.length})`,
     ),
+    el('button', { class: 'pastille', 'data-testid': 'btn-monde', onclick: () => jeu.aller('monde') }, '🗺️'),
     el('button', { class: 'pastille', 'data-testid': 'btn-tuto', onclick: () => ouvrirTuto() }, icone('aide', 16)),
   );
 

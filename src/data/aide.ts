@@ -1,6 +1,7 @@
 /** Tous les textes d'aide du jeu : traits, classes, écrans, mécaniques. */
 
 import type { ClassId, TraitId } from '../core/types';
+export { RACES } from './races';
 
 export const AIDE_TRAITS: Record<TraitId, { titre: string; texte: string }> = {
   force: { titre: 'Force', texte: 'Dégâts au corps à corps et points de vie. Le trait des cogneurs.' },
@@ -90,6 +91,14 @@ export const AIDE_ECRANS: Record<string, { titre: string; texte: string[] }> = {
       'Touchez une carte pour la fiche complète : ajustez le salaire (baisser = moral en chute), libérez un gladiateur (indemnité de 4 semaines de salaire).',
       'Palier (note globale) : D < 55 ≤ C < 65 ≤ B < 75 ≤ A < 85 ≤ S < 93 ≤ SS.',
       'Les TALENTS CACHÉS (jusqu’à 2 par gladiateur, plus fréquents aux hauts paliers) se découvrent quand ils se déclenchent dans VOS matchs : surveillez les annonces dorées en combat !',
+    ],
+  },
+  monde: {
+    titre: 'La carte du monde',
+    texte: [
+      'Votre cité se trouve au cœur du royaume. Les ligues nationales se disputent entre les cités voisines.',
+      'La Coupe du Royaume rassemble les meilleures écuries du pays, et le légendaire Tournoi des Champions se joue au-delà des mers, sur l’île au colisée (réputation 60 requise).',
+      'Les lieux s’illuminent selon votre prochaine échéance.',
     ],
   },
   match: {

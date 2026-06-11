@@ -1,0 +1,112 @@
+/**
+ * DESIGN TOKENS — Gladiators Manager (source de vérité visuelle)
+ * Documentés dans DESIGN_SYSTEM.md. Mobile-first, thème « parchemin & or ».
+ * Les anciens noms (--fond, --or…) sont des alias conservés pour compatibilité.
+ */
+
+:root {
+  /* ---- Couleurs : fondations ---- */
+  --col-surface-0: #16100a;      /* fond d'app */
+  --col-surface-1: #221709;      /* fond secondaire */
+  --col-surface-2: #2c1f10;      /* panneaux */
+  --col-surface-3: #3d2c17;      /* panneaux relevés / actifs */
+  --col-border: #5d4423;         /* bordures bois sombre */
+
+  /* ---- Couleurs : marque ---- */
+  --col-primary: #d4a017;        /* or — actions principales */
+  --col-primary-bright: #f0c75e; /* or clair — titres, accents */
+  --col-primary-ink: #2b1c02;    /* texte sur fond or */
+
+  /* ---- Couleurs : texte ---- */
+  --col-text: #f3e9d2;           /* texte principal (contraste AA sur surface-0) */
+  --col-text-strong: #e8d5a9;    /* parchemin — boutons, libellés */
+  --col-text-muted: #b09c78;     /* texte secondaire */
+
+  /* ---- Couleurs : sémantiques ---- */
+  --col-success: #27ae60;
+  --col-danger: #c0392b;
+  --col-info: #2980b9;
+
+  /* ---- Typographie (échelle 1.2, base 14) ---- */
+  --font-body: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --font-display: Georgia, 'Times New Roman', serif;
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 19px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+
+  /* ---- Espacements (échelle 4px) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* ---- Rayons ---- */
+  --radius-sm: 9px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 999px;
+
+  /* ---- Ombres ---- */
+  --shadow-card: 0 6px 16px rgba(0, 0, 0, 0.55);
+  --shadow-panel: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 18px 60px rgba(0, 0, 0, 0.7);
+
+  /* ---- Mouvement (retour < 100 ms, GPU : transform/opacity uniquement) ---- */
+  --motion-press: 70ms;
+  --motion-fast: 150ms;
+  --motion-screen: 240ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
+
+  /* ---- Alias historiques (compatibilité style.css) ---- */
+  --fond: var(--col-surface-0);
+  --fond2: var(--col-surface-1);
+  --panneau: var(--col-surface-2);
+  --panneau-clair: var(--col-surface-3);
+  --bord: var(--col-border);
+  --or: var(--col-primary);
+  --or-clair: var(--col-primary-bright);
+  --parchemin: var(--col-text-strong);
+  --texte: var(--col-text);
+  --texte-faible: var(--col-text-muted);
+  --rouge: var(--col-danger);
+  --vert: var(--col-success);
+  --bleu: var(--col-info);
+}
+
+/* ---- Animations d'écran et retours tactiles ---- */
+
+@keyframes ecran-entree {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modale-pop {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ecran, .combat-ecran {
+  animation: ecran-entree var(--motion-screen) var(--ease-out);
+}
+
+.modale {
+  animation: modale-pop var(--motion-fast) var(--ease-out);
+}
+
+/* feedback tactile immédiat (<100 ms), composables GPU uniquement */
+.carte-glad, .chip, .pastille, .onglet, .btn-consigne, .mini-glad, .ligne-liste, .btn-aide, .btn-retour {
+  transition: transform var(--motion-press) var(--ease-out);
+}
+.carte-glad:active, .mini-glad:active { transform: scale(0.97); }
+.chip:active, .pastille:active, .onglet:active, .btn-consigne:active, .btn-aide:active, .btn-retour:active { transform: scale(0.94); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ecran, .combat-ecran, .modale { animation: none; }
+}

@@ -337,6 +337,34 @@ function detecterMeta(): void {
     verifier(pct >= 22, `pas de classe poubelle : mono-${classe} ≥ 22 % (${pct} %)`);
   }
 
+  // 2bis) races : trio mono-race contre trio mixte (mêmes classes) — aucune race ne doit dominer
+  for (const race of ['humain', 'elfe', 'nain', 'orc', 'gobelin', 'drakeide'] as const) {
+    let v = 0;
+    for (let k = 0; k < N; k++) {
+      const cls: import('../../src/core/types').ClassId[] = ['bretteur', 'colosse', 'roublard'];
+      const mono = cls.map((c, q) => {
+        const g = genGladiateur(rng, 9250 + q, OVR, -1, c, race);
+        g.talents = [];
+        g.talentsConnus = [];
+        return g;
+      });
+      const mixte = cls.map((c, q) => {
+        const g = genGladiateur(rng, 9260 + q, OVR, -1, c, (['humain', 'elfe', 'nain'] as const)[q]);
+        g.talents = [];
+        g.talentsConnus = [];
+        return g;
+      });
+      const cs = creerCombat(mono, mixte, rng.int(1, 2 ** 31));
+      simulerJusquAuBout(cs);
+      const res = resultatCombat(cs);
+      if (res.vainqueur === 0) v++;
+      else if (res.vainqueur === -1) v += 0.5;
+    }
+    const pct = Math.round((v / N) * 100);
+    console.log(`  trio mono-${race} vs trio mixte : ${pct} %`);
+    verifier(pct >= 30 && pct <= 70, `race ${race} équilibrée (${pct} %, attendu 30-70)`);
+  }
+
   // 3) stratégies dégénérées : consigne unique contre consigne équilibrée
   for (const consigne of ['agressif', 'defensif', 'magie'] as const) {
     let v = 0;

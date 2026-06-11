@@ -20,7 +20,7 @@
  */
 
 import { RNG } from '../core/rng';
-import type { ClassId, Gladiator, TalentId } from '../core/types';
+import type { ClassId, Gladiator, RaceId, TalentId } from '../core/types';
 import { BALANCE } from '../data/balance';
 import { multiplicateurCondition } from './economie';
 import { noteGlobale } from './generation';
@@ -44,6 +44,7 @@ export interface UniteCombat {
   equipe: 0 | 1;
   nom: string;
   classe: ClassId;
+  race: RaceId;
   teinte: number;
   x: number;
   y: number;
@@ -186,6 +187,7 @@ function creerUnite(g: Gladiator, equipe: 0 | 1, slot: number, rng: RNG): UniteC
     equipe,
     nom: g.nom,
     classe: g.classe,
+    race: g.race ?? 'humain',
     teinte: g.teinte,
     x: pos.x,
     y: pos.y,

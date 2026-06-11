@@ -1,6 +1,7 @@
 /** Tutoriel de première partie + aide contextuelle par écran. */
 
 import { AIDE_CLASSES, AIDE_ECRANS, AIDE_TRAITS } from '../data/aide';
+import { ICONES_RACES, RACES, RACE_IDS } from '../data/races';
 import { TALENTS } from '../data/talents';
 import { NOMS_CLASSES } from '../data/noms';
 import type { ClassId, TraitId } from '../core/types';
@@ -36,7 +37,7 @@ const ETAPES: EtapeTuto[] = [
     titre: 'Les cartes et les paliers',
     ico: 'talent',
     lignes: [
-      'Chaque gladiateur a 6 traits sur 100 et une note globale qui définit son palier : D, C, B, A, S, SS.',
+      'Chaque gladiateur a une RACE (humain, elfe, nain, orc, gobelin, drakéide — chacune avec ses points forts), 6 traits sur 100 et une note globale qui définit son palier : D, C, B, A, S, SS.',
       'Force = mêlée et PV · Vitesse = cadence · Intelligence = blocage et garde · Fourberie = critiques et tirs à distance · Esquive = évite les coups · Magie = sorts (à 60+).',
       'Les talents CACHÉS (jusqu’à 2) se découvrent quand ils se déclenchent dans vos matchs.',
     ],
@@ -117,6 +118,14 @@ export function ouvrirAide(ecranId: string): void {
     }
   }
   if (ecranId === 'equipe') {
+    contenu.append(el('h2', { style: 'color:var(--or-clair);font-size:15px;margin:10px 0 6px;' }, 'Les races'));
+    for (const r of RACE_IDS) {
+      contenu.append(
+        el('div', { class: 'ligne-liste', style: 'font-size:12.5px;align-items:flex-start;' },
+          el('span', { style: 'width:24px;text-align:center;' }, ICONES_RACES[r]),
+          el('div', { style: 'flex:1;' }, el('b', null, RACES[r].nom, ' : '), RACES[r].description)),
+      );
+    }
     contenu.append(el('h2', { style: 'color:var(--or-clair);font-size:15px;margin:10px 0 6px;' }, 'Les classes'));
     for (const c of Object.keys(AIDE_CLASSES) as ClassId[]) {
       contenu.append(

@@ -8,6 +8,10 @@ export type TraitId = 'force' | 'vitesse' | 'intelligence' | 'fourberie' | 'esqu
 
 export type Personnalite = 'fidele' | 'cupide' | 'fier' | 'jovial' | 'anxieux';
 
+export type RaceId = 'humain' | 'elfe' | 'nain' | 'orc' | 'gobelin' | 'drakeide';
+
+export type Genre = 'm' | 'f';
+
 /** Talents cachés : se révèlent quand ils se déclenchent dans VOS matchs. */
 export type TalentId =
   | 'fumigene'      // après une esquive : invincible 0,9 s
@@ -47,6 +51,8 @@ export interface Gladiator {
   id: number;
   nom: string;
   classe: ClassId;
+  race: RaceId;
+  genre: Genre;
   /** variante de portrait 0..2 */
   variante: number;
   /** décalage de teinte (degrés) pour différencier les sprites */

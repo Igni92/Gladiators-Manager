@@ -1,19 +1,7 @@
 /* Gladiators Manager — thème sombre fantasy, mobile d'abord (tactile). */
 
+/* Les couleurs/typo/espacements vivent dans ui/tokens.css (design tokens). */
 :root {
-  --fond: #16100a;
-  --fond2: #221709;
-  --panneau: #2c1f10;
-  --panneau-clair: #3d2c17;
-  --bord: #5d4423;
-  --or: #d4a017;
-  --or-clair: #f0c75e;
-  --parchemin: #e8d5a9;
-  --texte: #f3e9d2;
-  --texte-faible: #b09c78;
-  --rouge: #c0392b;
-  --vert: #27ae60;
-  --bleu: #2980b9;
   --safe-haut: env(safe-area-inset-top, 0px);
   --safe-bas: env(safe-area-inset-bottom, 0px);
 }
@@ -320,3 +308,6 @@ table.classement tr.joueur td.eq { color: var(--or-clair); }
 .taux-barre { flex: 1; height: 12px; background: rgba(0,0,0,.45); border-radius: 6px; overflow: hidden; }
 .taux-rempli { height: 100%; background: linear-gradient(90deg, var(--or), var(--or-clair)); }
 .taux-pct { width: 58px; text-align: right; font-weight: 800; font-size: 13px; }
+
+
+.cg-race { font-size: 9.5px; opacity: .8; font-weight: 600; }

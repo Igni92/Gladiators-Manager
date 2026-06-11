@@ -1,7 +1,7 @@
 /** Chargement des assets pré-rendus (spritesheets, portraits, bâtiments, arène, UI). */
 
 import type { AnimId } from '../game/combat';
-import type { ClassId } from '../core/types';
+import type { ClassId, Genre, RaceId } from '../core/types';
 
 export interface LigneAtlas {
   dir: 'S' | 'E' | 'N' | 'W';
@@ -58,6 +58,12 @@ export class Assets {
     this.pret = true;
   }
 
+  /** Charge une image si elle existe (sans erreur si absente). */
+  chargerImageOptionnelle(cle: string, url: string): Promise<void> {
+    if (this.images.has(cle)) return Promise.resolve();
+    return this.chargerImage(cle, url);
+  }
+
   private chargerImage(cle: string, url: string): Promise<void> {
     return new Promise((resolve) => {
       const img = new Image();
@@ -78,6 +84,30 @@ export class Assets {
     return `${import.meta.env.BASE_URL}assets/portraits/${classe}_${variante % 3}.png`;
   }
 
+  /** Portrait racial v3 ; l'appelant branche onerror → portraitUrl() en repli. */
+  portraitUrlRace(race: RaceId, genre: Genre, classe: ClassId): string {
+    return `${import.meta.env.BASE_URL}assets/portraits/${race}_${genre}_${classe}.png`;
+  }
+
+  /** Charge à la demande la spritesheet raciale {race}_{classe} (combat). */
+  async chargerSpriteRace(race: RaceId, classe: ClassId): Promise<void> {
+    const cle = `${race}_${classe}`;
+    if (this.images.has(`sprite_${cle}`) || this.spritesAbsents.has(cle)) return;
+    const base = import.meta.env.BASE_URL + 'assets/';
+    try {
+      const rep = await fetch(`${base}sprites/${cle}.json`);
+      if (!rep.ok) throw new Error('absent');
+      const atlas = (await rep.json()) as Atlas;
+      await this.chargerImage(`sprite_${cle}`, `${base}sprites/${cle}.png`);
+      if (this.images.has(`sprite_${cle}`)) this.atlas.set(cle, atlas);
+      else this.spritesAbsents.add(cle);
+    } catch {
+      this.spritesAbsents.add(cle);
+    }
+  }
+
+  private spritesAbsents = new Set<string>();
+
   /**
    * Dessine une frame de sprite de combat.
    * `taille` = hauteur affichée du personnage standard (l'échelle de classe s'applique en plus).
@@ -91,9 +121,16 @@ export class Assets {
     x: number,
     y: number,
     taille: number,
+    race?: RaceId,
   ): boolean {
-    const img = this.images.get(`sprite_${classe}`);
-    const atlas = this.atlas.get(classe);
+    // feuille raciale si disponible, sinon repli sur la feuille de classe
+    const cleRace = race ? `${race}_${classe}` : null;
+    let img = cleRace ? this.images.get(`sprite_${cleRace}`) : undefined;
+    let atlas = cleRace ? this.atlas.get(cleRace) : undefined;
+    if (!img || !atlas) {
+      img = this.images.get(`sprite_${classe}`);
+      atlas = this.atlas.get(classe);
+    }
     if (!img || !atlas) return false;
     const ligne = atlas.rows.find((r) => r.dir === dir && r.anim === anim) ?? atlas.rows.find((r) => r.dir === dir && r.anim === 'idle');
     if (!ligne) return false;

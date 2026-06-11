@@ -1,5 +1,6 @@
 /** Point d'entrée : chargement des assets, enregistrement des écrans, démarrage. */
 
+import './ui/tokens.css';
 import './style.css';
 import { assets } from './render/assets';
 import { jeu } from './ui/jeu';
@@ -13,6 +14,7 @@ import { rendreBanque } from './ui/ecrans/banque';
 import { rendreInfirmerie } from './ui/ecrans/infirmerie';
 import { rendreEquipe } from './ui/ecrans/equipe';
 import { rendreMatch } from './ui/ecrans/match';
+import { rendreMonde } from './ui/ecrans/monde';
 import { el } from './ui/dom';
 
 jeu.enregistrer('titre', () => rendreTitre());
@@ -25,6 +27,7 @@ jeu.enregistrer('banque', () => rendreBanque());
 jeu.enregistrer('infirmerie', () => rendreInfirmerie());
 jeu.enregistrer('equipe', () => rendreEquipe());
 jeu.enregistrer('match', (p) => rendreMatch(p));
+jeu.enregistrer('monde', () => rendreMonde());
 
 async function demarrer(): Promise<void> {
   const racine = jeu.racine();

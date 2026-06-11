@@ -152,6 +152,11 @@ function rendrePlacement(adversaire: Team, competition: CompetitionId, titulaire
   const advGlads = composerEquipeIA(etat, adversaire);
   const slotsAdv = placementAuto(advGlads);
 
+  // précharge les feuilles raciales des 6 combattants (repli silencieux sinon)
+  for (const g of [...mesGlads, ...advGlads]) {
+    void assets.chargerSpriteRace(g.race ?? 'humain', g.classe);
+  }
+
   // placement initial : mémoire de la partie, sinon auto par classe
   const auto = placementAuto(mesGlads);
   const slots: number[] = mesGlads.map((g, i) => {
@@ -218,7 +223,7 @@ function rendrePlacement(adversaire: Team, competition: CompetitionId, titulaire
     advGlads.forEach((g, i) => {
       const p = posDepuisSlot(1, slotsAdv[i] ?? 4);
       ctx.globalAlpha = 0.75;
-      const ok = assets.dessinerSprite(ctx, g.classe, 'idle', 'W', 0, p.x, p.y, 120);
+      const ok = assets.dessinerSprite(ctx, g.classe, 'idle', 'W', 0, p.x, p.y, 120, g.race);
       if (!ok) {
         ctx.fillStyle = '#c0392b';
         ctx.beginPath();
@@ -242,7 +247,7 @@ function rendrePlacement(adversaire: Team, competition: CompetitionId, titulaire
     // mes gladiateurs placés
     mesGlads.forEach((g, i) => {
       const p = posDepuisSlot(0, slots[i] ?? 4);
-      const ok = assets.dessinerSprite(ctx, g.classe, 'idle', 'E', 0, p.x, p.y, 124);
+      const ok = assets.dessinerSprite(ctx, g.classe, 'idle', 'E', 0, p.x, p.y, 124, g.race);
       if (!ok) {
         ctx.fillStyle = '#27ae60';
         ctx.beginPath();

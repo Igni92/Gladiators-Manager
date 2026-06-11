@@ -6,6 +6,7 @@ import { sauvegarder } from '../core/save';
 export type Ecran =
   | 'titre'
   | 'ville'
+  | 'monde'
   | 'arene'
   | 'marche'
   | 'caserne'
